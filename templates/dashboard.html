@@ -878,6 +878,10 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         calendar.render();
         window.calendar = calendar;
+        // Tving korrekt størrelse etter at layouten har satt seg (fikser 0-høyde-bug)
+        requestAnimationFrame(function () { try { calendar.updateSize(); } catch (e) {} });
+        setTimeout(function () { try { calendar.updateSize(); } catch (e) {} }, 500);
+        window.addEventListener('load', function () { try { calendar.updateSize(); } catch (e) {} });
         console.log('✅ Calendar rendered successfully');
     } catch (error) {
         console.error('❌ Calendar render error:', error);
