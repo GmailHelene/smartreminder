@@ -1,0 +1,4 @@
+# Utviklings-/testavhengigheter (ikke nødvendig i produksjon)
+-r requirements.txt
+pytest==7.4.2
+pytest-playwright==0.5.2

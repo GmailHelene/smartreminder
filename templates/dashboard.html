@@ -4,17 +4,7 @@
 
 {% block content %}
 <style>
-  /* KALENDER først (hovedfokus), så påminnelser; statistikk/tavler nederst. */
-  .dashboard-wrap { display: flex; flex-direction: column; }
-  #dashboardToolbar { order: 1; }
-  #calendarSection { order: 2; }
-  #newReminderToggle { order: 3; }
-  #newReminderCollapse { order: 4; }
-  #remindersRow { order: 5; }
-  #statsRow { order: 6; }
-  #dashboardActions { order: 7; }
-  #boardsSection { order: 8; }
-  #accountSection { order: 9; }
+  /* Rekkefølge styres av HTML-kilderekkefølgen (kalender/påminnelser først, tavler nederst). */
 
   .dashboard-wrap.simple-view #statsRow,
   .dashboard-wrap.simple-view #dashboardActions,
@@ -114,63 +104,7 @@
     {% endif %}
 </div>
 
-<!-- Mine Tavler Section -->
-<div id="boardsSection" class="card mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
-    <div class="card-header bg-transparent border-0">
-        <h5 class="mb-0 text-white">
-            <i class="fas fa-chalkboard-teacher"></i> Mine tavler
-        </h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <a href="{{ url_for('noteboards') }}" class="text-decoration-none">
-                    <div class="card bg-white text-dark hover-shadow h-100" style="transition: all 0.3s ease;">
-                        <div class="card-body text-center d-flex flex-column justify-content-center">
-                            <i class="fas fa-clipboard-list fa-3x text-primary mb-3"></i>
-                            <h6 class="card-title mb-2">Private tavler</h6>
-                            <p class="card-text text-muted small mb-0">
-                                <span class="badge bg-primary">{{ boards_count|default(0) }}</span> tavler tilgjengelig
-                            </p>
-                        </div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-6 mb-3">
-                <a href="{{ url_for('noteboards') }}" class="text-decoration-none">
-                    <div class="card bg-white text-dark hover-shadow h-100" style="transition: all 0.3s ease;">
-                        <div class="card-body text-center d-flex flex-column justify-content-center">
-                            <i class="fas fa-users fa-3x text-success mb-3"></i>
-                            <h6 class="card-title mb-2">Delte tavler</h6>
-                            <p class="card-text text-muted small mb-0">
-                                <span class="badge bg-success">{{ shared_boards_count|default(0) }}</span> delte tavler
-                            </p>
-                        </div>
-                    </div>
-                </a>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-12 text-center">
-                <a href="{{ url_for('noteboards') }}" class="btn btn-light btn-sm me-2">
-                    <i class="fas fa-plus"></i> Opprett ny tavle
-                </a>
-                <button class="btn btn-outline-light btn-sm me-2" onclick="showJoinBoardModal()">
-                    <i class="fas fa-sign-in-alt"></i> Bli med på tavle
-                </button>
-                <button id="enablePushBtn" class="btn btn-outline-light btn-sm me-2" onclick="requestPushPermission()" style="display: none;" title="Valgfritt - for push-notifikasjoner til mobilen">
-                    <i class="fas fa-bell"></i> Aktiver varsler (valgfritt)
-                </button>
-                <button id="testPushBtn" class="btn btn-outline-warning btn-sm me-2" onclick="testPushNotification()" style="display: none;" title="Test push-notifikasjoner">
-                    <i class="fas fa-bell-ringing"></i> Test varsler
-                </button>
-                <button id="installBtn" class="btn btn-outline-light btn-sm" onclick="installApp()" style="display: none;">
-                    <i class="fas fa-download"></i> Installer app
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Mine Tavler Section: flyttet til bunnen (kalender/påminnelser er hovedfokus) -->
 
 <!-- Quick Board Join Modal -->
 <div class="modal fade" id="quickJoinBoardModal" tabindex="-1">
@@ -721,6 +655,64 @@
 </div>
 <!-- SLUTT KJØRESKOLEMODUS WIDGETS -->
 {% endif %}
+
+<!-- Mine Tavler Section (nederst - sekundært) -->
+<div id="boardsSection" class="card mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+    <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0 text-white">
+            <i class="fas fa-chalkboard-teacher"></i> Mine tavler
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <a href="{{ url_for('noteboards') }}" class="text-decoration-none">
+                    <div class="card bg-white text-dark hover-shadow h-100" style="transition: all 0.3s ease;">
+                        <div class="card-body text-center d-flex flex-column justify-content-center">
+                            <i class="fas fa-clipboard-list fa-3x text-primary mb-3"></i>
+                            <h6 class="card-title mb-2">Private tavler</h6>
+                            <p class="card-text text-muted small mb-0">
+                                <span class="badge bg-primary">{{ boards_count|default(0) }}</span> tavler tilgjengelig
+                            </p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 mb-3">
+                <a href="{{ url_for('noteboards') }}" class="text-decoration-none">
+                    <div class="card bg-white text-dark hover-shadow h-100" style="transition: all 0.3s ease;">
+                        <div class="card-body text-center d-flex flex-column justify-content-center">
+                            <i class="fas fa-users fa-3x text-success mb-3"></i>
+                            <h6 class="card-title mb-2">Delte tavler</h6>
+                            <p class="card-text text-muted small mb-0">
+                                <span class="badge bg-success">{{ shared_boards_count|default(0) }}</span> delte tavler
+                            </p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 text-center">
+                <a href="{{ url_for('noteboards') }}" class="btn btn-light btn-sm me-2">
+                    <i class="fas fa-plus"></i> Opprett ny tavle
+                </a>
+                <button class="btn btn-outline-light btn-sm me-2" onclick="showJoinBoardModal()">
+                    <i class="fas fa-sign-in-alt"></i> Bli med på tavle
+                </button>
+                <button id="enablePushBtn" class="btn btn-outline-light btn-sm me-2" onclick="requestPushPermission()" style="display: none;" title="Valgfritt - for push-notifikasjoner til mobilen">
+                    <i class="fas fa-bell"></i> Aktiver varsler (valgfritt)
+                </button>
+                <button id="testPushBtn" class="btn btn-outline-warning btn-sm me-2" onclick="testPushNotification()" style="display: none;" title="Test push-notifikasjoner">
+                    <i class="fas fa-bell-ringing"></i> Test varsler
+                </button>
+                <button id="installBtn" class="btn btn-outline-light btn-sm" onclick="installApp()" style="display: none;">
+                    <i class="fas fa-download"></i> Installer app
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Konto / personvern -->
 <div id="accountSection" class="mt-5 pt-3 border-top text-center">
