@@ -444,6 +444,19 @@ def _generate_csp_nonce():
 def inject_csp_nonce():
     return {'csp_nonce': getattr(g, 'csp_nonce', '')}
 
+
+@app.context_processor
+def inject_app_url():
+    """Kanonisk base-URL for absolutte lenker. Bruker APP_URL hvis satt, ellers
+    den aktuelle request-verten - så appen fungerer på et hvilket som helst domene."""
+    base = (os.environ.get('APP_URL') or '').rstrip('/')
+    if not base:
+        try:
+            base = request.url_root.rstrip('/')
+        except Exception:
+            base = ''
+    return {'app_url': base}
+
 # 📊 Data Manager — samme API (load_data/save_data), to backends:
 #   - Postgres (kv-tabell 'app_store') når DATABASE_URL er satt OG USE_DB=true
 #   - JSON-filer på Railway Volume ellers (uendret standardoppførsel / rollback)
@@ -2515,13 +2528,20 @@ def sw_test():
 # Static file routes to fix 404 errors
 @app.route('/robots.txt')
 def robots_txt():
-    """Serve robots.txt file"""
-    try:
-        return send_from_directory('static', 'robots.txt', mimetype='text/plain')
-    except:
-        # Fallback with basic robots.txt content
-        from flask import Response
-        return Response("User-agent: *\nDisallow:", mimetype='text/plain')
+    """robots.txt med dynamisk sitemap-URL (APP_URL eller aktuell vert)."""
+    from flask import Response
+    base = (os.environ.get('APP_URL') or request.url_root.rstrip('/'))
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /admin/\n"
+        "Disallow: /api/\n"
+        "Disallow: /data/\n"
+        "Disallow: /email-settings\n"
+        "Disallow: /test-email\n\n"
+        f"Sitemap: {base}/sitemap.xml\n"
+    )
+    return Response(body, mimetype='text/plain')
 
 @app.route('/favicon.ico')
 def favicon():

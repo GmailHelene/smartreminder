@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="SmartReminder Pro hjelper deg å huske det som betyr noe. Enkle påminnelser på e-post og web-push, delte tavler, og en ekstra enkel visning.">
     <title>{% block title %}SmartReminder Pro{% endblock %}</title>
-    <link rel="canonical" href="https://smartremind-production.up.railway.app{{ request.path }}">
+    <link rel="canonical" href="{{ app_url }}{{ request.path }}">
 
     <!-- Open Graph / deling -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="SmartReminder Pro">
     <meta property="og:title" content="SmartReminder Pro - enkle påminnelser for hverdagen">
     <meta property="og:description" content="Enkle påminnelser på e-post og web-push, delte tavler, og en ekstra enkel visning.">
-    <meta property="og:image" content="https://smartremind-production.up.railway.app/static/images/icon-512x512.png">
+    <meta property="og:image" content="{{ app_url }}/static/images/icon-512x512.png">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="SmartReminder Pro">
     <meta name="twitter:description" content="Enkle påminnelser på e-post og web-push, delte tavler.">

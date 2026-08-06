@@ -3,8 +3,12 @@ Shared Noteboard for Smart Påminner Pro
 Delte tavler hvor brukere kan samarbeide
 """
 
+import os
 import uuid
 import json
+
+# Kanonisk base-URL for e-postlenker (settes via APP_URL i Railway når domenet endres)
+_APP_URL = os.environ.get('APP_URL', 'https://smartremind-production.up.railway.app').rstrip('/')
 from datetime import datetime
 from pathlib import Path
 
@@ -272,8 +276,8 @@ class NoteboardManager:
                             'updated_by': updated_by,
                             'note_content': note_content,
                             'update_time': datetime.now(),
-                            'app_url': 'https://smartremind-production.up.railway.app',
-                            'board_url': f'https://smartremind-production.up.railway.app/board/{board.board_id}'
+                            'app_url': _APP_URL,
+                            'board_url': f'{_APP_URL}/board/{board.board_id}'
                         }
                     }
                     send_email(email_data)
