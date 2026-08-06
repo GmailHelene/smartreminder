@@ -33,7 +33,7 @@ gunicorn==21.2.0
 
 # Push notifications
 pywebpush==1.14.0
-cryptography==41.0.7
+cryptography==44.0.2  # >=44.0.2 kreves av webauthn 2.5.2; pywebpush godtar alt >=2.6.1
 
 # Passkeys / WebAuthn
 webauthn==2.5.2
