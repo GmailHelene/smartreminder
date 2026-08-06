@@ -155,7 +155,40 @@
     <!-- PWA Scripts -->
     <script src="/static/js/pwa.js"></script>
     <script src="/static/js/app.js"></script>
-    
+
+    <!-- Passkeys / WebAuthn -->
+    <script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10.0.0/dist/bundle/index.umd.min.js"></script>
+    <script nonce="{{ csp_nonce }}">
+    async function addPasskey() {
+      try {
+        const beginResp = await fetch('/webauthn/register/begin', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+        if (!beginResp.ok) { throw new Error('kunne ikke starte registrering'); }
+        const options = await beginResp.json();
+        const attResp = await SimpleWebAuthnBrowser.startRegistration(options);
+        const compResp = await fetch('/webauthn/register/complete', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(attResp)});
+        const data = await compResp.json();
+        if (data.ok) { alert('Passkey lagt til! Nå kan du logge inn med Face ID / fingeravtrykk.'); }
+        else { alert(data.error || 'Kunne ikke legge til passkey.'); }
+      } catch (e) {
+        if (e.name !== 'NotAllowedError') { alert('Kunne ikke legge til passkey: ' + (e.message || e)); }
+      }
+    }
+    async function loginWithPasskey() {
+      try {
+        const beginResp = await fetch('/webauthn/login/begin', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+        if (!beginResp.ok) { throw new Error('kunne ikke starte innlogging'); }
+        const options = await beginResp.json();
+        const asseResp = await SimpleWebAuthnBrowser.startAuthentication(options);
+        const compResp = await fetch('/webauthn/login/complete', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(asseResp)});
+        const data = await compResp.json();
+        if (data.ok) { window.location.href = data.redirect || '/dashboard'; }
+        else { alert(data.error || 'Innlogging med passkey feilet.'); }
+      } catch (e) {
+        if (e.name !== 'NotAllowedError') { alert('Innlogging med passkey feilet: ' + (e.message || e)); }
+      }
+    }
+    </script>
+
     {% block scripts %}{% endblock %}
 </body>
 </html>

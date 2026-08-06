@@ -449,8 +449,10 @@ def inject_app_url():
 #   - JSON-filer på Railway Volume ellers (uendret standardoppførsel / rollback)
 class DataManager:
     _COLLECTIONS = ['users', 'reminders', 'shared_reminders', 'notifications',
-                    'email_log', 'shared_noteboards', 'password_reset_requests', 'push_subscriptions']
-    _DICT_COLLECTIONS = {'users', 'password_reset_requests', 'push_subscriptions', 'shared_noteboards'}
+                    'email_log', 'shared_noteboards', 'password_reset_requests', 'push_subscriptions',
+                    'webauthn_credentials']
+    _DICT_COLLECTIONS = {'users', 'password_reset_requests', 'push_subscriptions', 'shared_noteboards',
+                         'webauthn_credentials'}
 
     def _default_for(self, name):
         return {} if name in self._DICT_COLLECTIONS else []
@@ -1153,6 +1155,130 @@ def reset_password(token):
         return redirect(url_for('login'))
     
     return render_template('reset_password.html', token=token)
+
+
+# ============ Passkeys / WebAuthn ============
+def _webauthn_rp_id():
+    return os.environ.get('WEBAUTHN_RP_ID') or request.host.split(':')[0]
+
+
+def _webauthn_origin():
+    return os.environ.get('WEBAUTHN_ORIGIN') or request.url_root.rstrip('/')
+
+
+@app.route('/webauthn/register/begin', methods=['POST'])
+@csrf.exempt
+@login_required
+@rate_limit(10, 60)
+def webauthn_register_begin():
+    from webauthn import generate_registration_options, options_to_json
+    from webauthn.helpers import bytes_to_base64url, base64url_to_bytes
+    from webauthn.helpers.structs import (AuthenticatorSelectionCriteria,
+                                          ResidentKeyRequirement, UserVerificationRequirement,
+                                          PublicKeyCredentialDescriptor)
+    creds = dm.load_data('webauthn_credentials', {})
+    exclude = [PublicKeyCredentialDescriptor(id=base64url_to_bytes(cid))
+               for cid, c in creds.items() if isinstance(c, dict) and c.get('user_id') == current_user.id]
+    opts = generate_registration_options(
+        rp_id=_webauthn_rp_id(),
+        rp_name='SmartReminder Pro',
+        user_id=current_user.id.encode('utf-8'),
+        user_name=current_user.email,
+        user_display_name=current_user.email,
+        exclude_credentials=exclude,
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            resident_key=ResidentKeyRequirement.PREFERRED,
+            user_verification=UserVerificationRequirement.PREFERRED,
+        ),
+    )
+    session['webauthn_reg_challenge'] = bytes_to_base64url(opts.challenge)
+    from flask import Response
+    return Response(options_to_json(opts), mimetype='application/json')
+
+
+@app.route('/webauthn/register/complete', methods=['POST'])
+@csrf.exempt
+@login_required
+def webauthn_register_complete():
+    from webauthn import verify_registration_response
+    from webauthn.helpers import bytes_to_base64url, base64url_to_bytes
+    challenge_b64 = session.pop('webauthn_reg_challenge', None)
+    if not challenge_b64:
+        return jsonify({'ok': False, 'error': 'Ingen aktiv registrering'}), 400
+    try:
+        verification = verify_registration_response(
+            credential=request.get_data(as_text=True),
+            expected_challenge=base64url_to_bytes(challenge_b64),
+            expected_rp_id=_webauthn_rp_id(),
+            expected_origin=_webauthn_origin(),
+        )
+    except Exception as e:
+        logger.error(f"Passkey-registrering feilet: {e}")
+        return jsonify({'ok': False, 'error': 'Kunne ikke verifisere passkey'}), 400
+    creds = dm.load_data('webauthn_credentials', {})
+    cid = bytes_to_base64url(verification.credential_id)
+    creds[cid] = {
+        'user_id': current_user.id,
+        'public_key': bytes_to_base64url(verification.credential_public_key),
+        'sign_count': verification.sign_count,
+        'created': datetime.now().isoformat(),
+    }
+    dm.save_data('webauthn_credentials', creds)
+    return jsonify({'ok': True})
+
+
+@app.route('/webauthn/login/begin', methods=['POST'])
+@csrf.exempt
+@rate_limit(20, 60)
+def webauthn_login_begin():
+    from webauthn import generate_authentication_options, options_to_json
+    from webauthn.helpers import bytes_to_base64url
+    from webauthn.helpers.structs import UserVerificationRequirement
+    opts = generate_authentication_options(
+        rp_id=_webauthn_rp_id(),
+        user_verification=UserVerificationRequirement.PREFERRED,
+    )
+    session['webauthn_auth_challenge'] = bytes_to_base64url(opts.challenge)
+    from flask import Response
+    return Response(options_to_json(opts), mimetype='application/json')
+
+
+@app.route('/webauthn/login/complete', methods=['POST'])
+@csrf.exempt
+@rate_limit(20, 60)
+def webauthn_login_complete():
+    from webauthn import verify_authentication_response
+    from webauthn.helpers import base64url_to_bytes
+    challenge_b64 = session.pop('webauthn_auth_challenge', None)
+    if not challenge_b64:
+        return jsonify({'ok': False, 'error': 'Ingen aktiv innlogging'}), 400
+    body = request.get_json(silent=True) or {}
+    cid = body.get('id')
+    creds = dm.load_data('webauthn_credentials', {})
+    stored = creds.get(cid) if isinstance(creds, dict) else None
+    if not stored:
+        return jsonify({'ok': False, 'error': 'Ukjent passkey'}), 400
+    try:
+        verification = verify_authentication_response(
+            credential=request.get_data(as_text=True),
+            expected_challenge=base64url_to_bytes(challenge_b64),
+            expected_rp_id=_webauthn_rp_id(),
+            expected_origin=_webauthn_origin(),
+            credential_public_key=base64url_to_bytes(stored['public_key']),
+            credential_current_sign_count=stored.get('sign_count', 0),
+        )
+    except Exception as e:
+        logger.error(f"Passkey-innlogging feilet: {e}")
+        return jsonify({'ok': False, 'error': 'Kunne ikke verifisere passkey'}), 400
+    stored['sign_count'] = verification.new_sign_count
+    creds[cid] = stored
+    dm.save_data('webauthn_credentials', creds)
+    user = User.get(stored['user_id'])
+    if not user:
+        return jsonify({'ok': False, 'error': 'Bruker finnes ikke'}), 400
+    login_user(user, remember=True)
+    return jsonify({'ok': True, 'redirect': url_for('dashboard')})
+
 
 @app.route('/dashboard')
 @login_required

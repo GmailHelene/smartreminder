@@ -716,6 +716,11 @@
 
 <!-- Konto / personvern -->
 <div id="accountSection" class="mt-5 pt-3 border-top text-center">
+    <div class="mb-3">
+        <button type="button" id="addPasskeyBtn" class="btn btn-outline-primary btn-sm" onclick="addPasskey()">
+            <i class="fas fa-fingerprint"></i> Legg til passkey (Face ID / fingeravtrykk)
+        </button>
+    </div>
     <a href="{{ url_for('personvern') }}" class="text-muted small me-3"><i class="fas fa-lock"></i> Personvern</a>
     <a href="{{ url_for('export_my_data') }}" class="text-muted small me-3"><i class="fas fa-download"></i> Last ned mine data</a>
     <form method="POST" action="{{ url_for('delete_account') }}" class="d-inline"

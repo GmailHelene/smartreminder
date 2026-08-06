@@ -35,6 +35,9 @@ gunicorn==21.2.0
 pywebpush==1.14.0
 cryptography==41.0.7
 
+# Passkeys / WebAuthn
+webauthn==2.5.2
+
 # Development and testing
 pytest==7.4.2
 pytest-flask==1.2.0

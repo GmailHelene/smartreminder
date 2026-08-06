@@ -105,6 +105,52 @@ def test_inline_handler_still_works(account, page):
     assert "simple-view" in page.content(), "onchange handler did not fire (CSP too strict?)"
 
 
+def test_passkey_register_then_login(page):
+    """Full WebAuthn round-trip via a CDP virtual authenticator: add a passkey, log out, log back in with it."""
+    email, password = _unique_email(), "PasskeyPass123"
+    # register a normal account
+    page.goto(f"{BASE_URL}/login")
+    page.click("button[data-bs-target='#registerModal']")
+    reg = page.locator("#registerForm")
+    reg.locator("input[name='username']").fill(email)
+    page.fill("#reg-password", password)
+    page.fill("#reg-password-confirm", password)
+    page.check("#reg-consent")
+    reg.locator("button[type='submit']").click()
+    page.wait_for_url(re.compile(r"/dashboard"), timeout=15000)
+
+    # virtual authenticator (resident key + user-verified, auto-approve prompts)
+    cdp = page.context.new_cdp_session(page)
+    cdp.send("WebAuthn.enable")
+    cdp.send("WebAuthn.addVirtualAuthenticator", {"options": {
+        "protocol": "ctap2", "transport": "internal",
+        "hasResidentKey": True, "hasUserVerification": True,
+        "isUserVerified": True, "automaticPresenceSimulation": True,
+    }})
+    page.on("dialog", lambda d: d.accept())
+
+    # add a passkey
+    with page.expect_response(lambda r: "/webauthn/register/complete" in r.url) as reg_info:
+        page.click("#addPasskeyBtn")
+    assert reg_info.value.json().get("ok") is True, f"passkey register failed: {reg_info.value.text()}"
+
+    # log out, then log in with the passkey
+    page.goto(f"{BASE_URL}/logout")
+    page.wait_for_url(re.compile(r"/login"), timeout=10000)
+    with page.expect_response(lambda r: "/webauthn/login/complete" in r.url) as login_info:
+        page.get_by_role("button", name=re.compile("Logg inn med passkey")).click()
+    assert login_info.value.json().get("ok") is True, f"passkey login failed: {login_info.value.text()}"
+    page.wait_for_url(re.compile(r"/dashboard"), timeout=15000)
+    assert "Mine påminnelser" in page.content()
+
+    # cleanup
+    try:
+        page.locator("form[action$='/delete-account'] button[type='submit']").click()
+        page.wait_for_url(re.compile(r"/login"), timeout=10000)
+    except Exception:
+        pass
+
+
 def test_no_console_errors_on_dashboard(account, page):
     """Guard for the strict-CSP work: no uncaught JS / CSP errors on the dashboard."""
     errors = []
