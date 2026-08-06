@@ -77,11 +77,10 @@ def test_calendar_is_above_boards(account, page):
 
 def test_add_and_complete_reminder(account, page):
     page.click("#newReminderToggle button")
-    form = page.locator("#newReminderCollapse")
-    form.locator("input[name='title']").fill("PW test reminder")
-    form.locator("input[name='date']").fill("2026-12-24")
-    form.locator("input[name='time']").fill("10:00")
-    form.locator("button[type='submit']").click()
+    page.fill("#title", "PW test reminder")
+    page.fill("#date", "2026-12-24")
+    page.fill("#time", "10:00")
+    page.locator("#newReminderCollapse #submit").click()
     page.wait_for_load_state("networkidle")
     assert "PW test reminder" in page.content()
 
