@@ -137,9 +137,12 @@ def test_passkey_register_then_login(page):
     # log out, then log in with the passkey
     page.goto(f"{BASE_URL}/logout")
     page.wait_for_url(re.compile(r"/login"), timeout=10000)
+    # NB: loginWithPasskey() redirects to /dashboard the moment it gets the response,
+    # so we can't read the response body afterwards (navigation discards it). Assert on
+    # the HTTP status (available without the body) and the resulting URL instead.
     with page.expect_response(lambda r: "/webauthn/login/complete" in r.url) as login_info:
         page.get_by_role("button", name=re.compile("Logg inn med passkey")).click()
-    assert login_info.value.json().get("ok") is True, f"passkey login failed: {login_info.value.text()}"
+    assert login_info.value.status == 200, f"passkey login HTTP {login_info.value.status}"
     page.wait_for_url(re.compile(r"/dashboard"), timeout=15000)
     assert "Mine påminnelser" in page.content()
 
