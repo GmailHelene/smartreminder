@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, abort, send_from_directory, current_app
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, abort, send_from_directory, current_app, g
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_mail import Mail, Message
 from flask_wtf import FlaskForm
@@ -355,6 +355,25 @@ def set_security_headers(response):
         "form-action 'self'"
     )
     response.headers.setdefault('Content-Security-Policy', csp)
+    # Strict policy in REPORT-ONLY: nonce-based scripts, no 'unsafe-inline'.
+    # This BLOCKS NOTHING — it only reports what a strict CSP would break, so inline
+    # handlers/scripts can be converted safely before we flip it to enforcing.
+    _nonce = getattr(g, 'csp_nonce', '')
+    strict_csp = (
+        "default-src 'self'; "
+        f"script-src 'self' 'nonce-{_nonce}' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "font-src 'self' https://cdnjs.cloudflare.com data:; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self'; "
+        "manifest-src 'self'; "
+        "worker-src 'self'; "
+        "frame-ancestors 'self'; "
+        "base-uri 'self'; "
+        "object-src 'none'; "
+        "form-action 'self'"
+    )
+    response.headers.setdefault('Content-Security-Policy-Report-Only', strict_csp)
     # HSTS is only honored over HTTPS (browsers ignore it on plain HTTP).
     if request.is_secure:
         response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
@@ -413,6 +432,17 @@ def inject_csrf_token():
     """Make CSRF token available in all templates"""
     from flask_wtf.csrf import generate_csrf
     return dict(csrf_token=generate_csrf)
+
+
+@app.before_request
+def _generate_csp_nonce():
+    import secrets as _secrets
+    g.csp_nonce = _secrets.token_urlsafe(16)
+
+
+@app.context_processor
+def inject_csp_nonce():
+    return {'csp_nonce': getattr(g, 'csp_nonce', '')}
 
 # 📊 Data Manager — samme API (load_data/save_data), to backends:
 #   - Postgres (kv-tabell 'app_store') når DATABASE_URL er satt OG USE_DB=true
