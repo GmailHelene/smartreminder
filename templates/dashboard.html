@@ -4,12 +4,17 @@
 
 {% block content %}
 <style>
-  /* Rekkefølge: kalender + påminnelser er hovedfokus; tavler nederst. */
+  /* KALENDER først (hovedfokus), så påminnelser; statistikk/tavler nederst. */
   .dashboard-wrap { display: flex; flex-direction: column; }
-  #calendarSection { order: 10; }
-  #remindersRow { order: 20; }
-  #boardsSection { order: 40; }
-  #accountSection { order: 50; }
+  #dashboardToolbar { order: 1; }
+  #calendarSection { order: 2; }
+  #newReminderToggle { order: 3; }
+  #newReminderCollapse { order: 4; }
+  #remindersRow { order: 5; }
+  #statsRow { order: 6; }
+  #dashboardActions { order: 7; }
+  #boardsSection { order: 8; }
+  #accountSection { order: 9; }
 
   .dashboard-wrap.simple-view #statsRow,
   .dashboard-wrap.simple-view #dashboardActions,
@@ -24,7 +29,7 @@
 <div class="dashboard-wrap {% if simple_view %}simple-view{% endif %}">
 
 <!-- Toolbar: fokusmodus + Enkel visning -->
-<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+<div id="dashboardToolbar" class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
     <form method="POST" action="{{ url_for('focus_modes') }}" class="mb-0">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="input-group input-group-sm">
@@ -201,8 +206,8 @@
     </div>
 </div>
 
-<!-- Ny påminnelse (kollapsbar - dashbordet leder med påminnelsene dine) -->
-<div class="mb-3">
+<!-- Ny påminnelse (kollapsbar) -->
+<div id="newReminderToggle" class="mb-3">
     <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newReminderCollapse" aria-expanded="false" aria-controls="newReminderCollapse">
         <i class="fas fa-plus" aria-hidden="true"></i> Ny påminnelse
     </button>
