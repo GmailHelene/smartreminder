@@ -1,0 +1,699 @@
+<!-- filepath: /workspaces/smartreminder/static/mobile_sound_test.html -->
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobil Lydtest for SmartReminder</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { 
+            padding-top: 20px; 
+            padding-bottom: 100px;
+            background-color: #f8f9fa;
+        }
+        .test-section {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .test-button {
+            margin: 5px;
+            min-width: 200px;
+        }
+        .success { color: #28a745; }
+        .warning { color: #ffc107; }
+        .error { color: #dc3545; }
+        .log-container {
+            background-color: #212529;
+            color: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+        .badge-high-priority {
+            background-color: #dc3545;
+            color: white;
+            font-weight: bold;
+        }
+        #status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #343a40;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            z-index: 1000;
+        }
+        .priority-option {
+            display: inline-block;
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .priority-option.active {
+            background-color: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Mobil Lydtest for SmartReminder</h1>
+        <p class="text-center mb-4">
+            Denne siden hjelper deg med å teste og feilsøke lydvarsler på mobilenheten din.
+        </p>
+
+        <!-- Systemkompatibilitet -->
+        <div class="test-section">
+            <h3><i class="fas fa-check-circle"></i> Systemkompatibilitet</h3>
+            <p>Sjekk om enheten din støtter alle nødvendige funksjoner:</p>
+            <button id="check-compatibility" class="btn btn-primary test-button">
+                Kjør kompatibilitetssjekk
+            </button>
+            <div id="compatibility-results" class="mt-3">
+                <ul class="list-group">
+                    <li class="list-group-item" id="notifications-support">Notification API: <span>Ikke testet</span></li>
+                    <li class="list-group-item" id="audio-api-support">Web Audio API: <span>Ikke testet</span></li>
+                    <li class="list-group-item" id="html5-audio-support">HTML5 Audio: <span>Ikke testet</span></li>
+                    <li class="list-group-item" id="vibration-support">Vibration API: <span>Ikke testet</span></li>
+                    <li class="list-group-item" id="sw-support">Service Worker: <span>Ikke testet</span></li>
+                    <li class="list-group-item" id="autoplay-support">Autoplay: <span>Ikke testet</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Direkte lydavspilling -->
+        <div class="test-section">
+            <h3><i class="fas fa-volume-up"></i> Direkte lydavspilling</h3>
+            <p>Test avspilling av lyder direkte i nettleseren:</p>
+            <div class="d-flex flex-wrap">
+                <button onclick="testDirectSound('pristine.mp3')" class="btn btn-success test-button">
+                    <i class="fas fa-play"></i> Pristine (Standard)
+                </button>
+                <button onclick="testDirectSound('ding.mp3')" class="btn btn-success test-button">
+                    <i class="fas fa-play"></i> Ding
+                </button>
+                <button onclick="testDirectSound('chime.mp3')" class="btn btn-success test-button">
+                    <i class="fas fa-play"></i> Chime
+                </button>
+                <button onclick="testDirectSound('alert.mp3')" class="btn btn-info test-button">
+                    <i class="fas fa-play"></i> Alert (Høy prioritet)
+                </button>
+            </div>
+            <div class="mt-3">
+                <button id="test-html5-audio" class="btn btn-secondary test-button">
+                    <i class="fas fa-play"></i> Test HTML5 Audio
+                </button>
+                <button id="test-webaudio-api" class="btn btn-secondary test-button">
+                    <i class="fas fa-play"></i> Test Web Audio API
+                </button>
+            </div>
+            <div id="manual-play-container" class="mt-3" style="display: none;">
+                <p class="alert alert-warning">
+                    <strong>Autoplay er deaktivert på enheten din.</strong> 
+                    Trykk på knappen under for å spille lyden manuelt:
+                </p>
+                <button id="manual-play-button" class="btn btn-warning btn-lg">
+                    <i class="fas fa-volume-up"></i> Spill lyd manuelt
+                </button>
+            </div>
+        </div>
+
+        <!-- Service Worker Lyd -->
+        <div class="test-section">
+            <h3><i class="fas fa-cog"></i> Service Worker Lyd</h3>
+            <p>Test avspilling av lyder via Service Worker:</p>
+            <button id="register-sw" class="btn btn-primary test-button">
+                Registrer Service Worker
+            </button>
+            <div class="mt-3 d-flex flex-wrap">
+                <button id="test-sw-sound" class="btn btn-info test-button" disabled>
+                    <i class="fas fa-broadcast-tower"></i> Test SW Lyd (Standard)
+                </button>
+                <button id="test-sw-high-priority" class="btn btn-danger test-button" disabled>
+                    <i class="fas fa-broadcast-tower"></i> Test SW Lyd (Høy Prioritet)
+                </button>
+            </div>
+        </div>
+
+        <!-- Notifikasjoner -->
+        <div class="test-section">
+            <h3><i class="fas fa-bell"></i> Notifikasjoner</h3>
+            <p>Test varslinger med lyd:</p>
+            <div class="mb-3">
+                <div class="form-check form-check-inline priority-option" onclick="setPriority('normal')">
+                    <input class="form-check-input" type="radio" name="priority" id="priority-normal" checked>
+                    <label class="form-check-label" for="priority-normal">Normal prioritet</label>
+                </div>
+                <div class="form-check form-check-inline priority-option" onclick="setPriority('high')">
+                    <input class="form-check-input" type="radio" name="priority" id="priority-high">
+                    <label class="form-check-label" for="priority-high">Høy prioritet</label>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap">
+                <button id="test-notification" class="btn btn-primary test-button">
+                    <i class="fas fa-bell"></i> Test Notifikasjon
+                </button>
+                <button id="test-notification-sound" class="btn btn-primary test-button">
+                    <i class="fas fa-bell"></i> Test Notifikasjon med Lyd
+                </button>
+            </div>
+        </div>
+
+        <!-- Vibrasjon -->
+        <div class="test-section">
+            <h3><i class="fas fa-mobile-alt"></i> Vibrasjon</h3>
+            <p>Test vibrasjon på enheten din:</p>
+            <div class="d-flex flex-wrap">
+                <button onclick="testVibration([100, 50, 100])" class="btn btn-info test-button">
+                    <i class="fas fa-mobile-alt"></i> Normal Vibrasjon
+                </button>
+                <button onclick="testVibration([200, 100, 200, 100, 200])" class="btn btn-danger test-button">
+                    <i class="fas fa-mobile-alt"></i> Høy Prioritet Vibrasjon
+                </button>
+            </div>
+        </div>
+
+        <!-- Kjøreskole Modus -->
+        <div class="test-section">
+            <h3><i class="fas fa-car"></i> Kjøreskole Modus</h3>
+            <p>Test funksjonalitet for kjøreskole:</p>
+            <button id="test-driving-school" class="btn btn-warning test-button">
+                <i class="fas fa-car"></i> Test Kjøreskole Varsling
+            </button>
+            <div class="mt-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="force-high-priority" checked>
+                    <label class="form-check-label" for="force-high-priority">
+                        Tving høy prioritet (som delt påminnelse)
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logger -->
+        <div class="test-section">
+            <h3><i class="fas fa-list"></i> Testlogg</h3>
+            <div class="log-container" id="log-container">
+                <div class="log-entry">Testlog initialisert.</div>
+            </div>
+            <button class="btn btn-secondary mt-3" onclick="clearLog()">
+                <i class="fas fa-trash"></i> Tøm logg
+            </button>
+        </div>
+    </div>
+
+    <div id="status-bar">
+        Klar til testing
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        let currentPriority = 'normal';
+        let serviceWorkerRegistration = null;
+        
+        // Logger funksjon
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('log-container');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="${type}">[${type.toUpperCase()}]</span> ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Oppdater statuslinjen
+            document.getElementById('status-bar').textContent = message;
+        }
+        
+        function clearLog() {
+            document.getElementById('log-container').innerHTML = '';
+            log('Logg tømt.');
+        }
+        
+        // Kompatibilitetssjekk
+        document.getElementById('check-compatibility').addEventListener('click', function() {
+            checkCompatibility();
+        });
+        
+        function checkCompatibility() {
+            log('Starter kompatibilitetssjekk...');
+            
+            // Notification API
+            const notificationsSupport = 'Notification' in window;
+            updateCompatibilityItem('notifications-support', notificationsSupport, 'Notification API');
+            
+            // Web Audio API
+            const audioApiSupport = 'AudioContext' in window || 'webkitAudioContext' in window;
+            updateCompatibilityItem('audio-api-support', audioApiSupport, 'Web Audio API');
+            
+            // HTML5 Audio
+            const audioElement = document.createElement('audio');
+            const html5AudioSupport = !!audioElement.canPlayType;
+            updateCompatibilityItem('html5-audio-support', html5AudioSupport, 'HTML5 Audio');
+            
+            // Vibration API
+            const vibrationSupport = 'vibrate' in navigator;
+            updateCompatibilityItem('vibration-support', vibrationSupport, 'Vibration API');
+            
+            // Service Worker
+            const swSupport = 'serviceWorker' in navigator;
+            updateCompatibilityItem('sw-support', swSupport, 'Service Worker');
+            
+            // Autoplay (dette er en tilnærming, ingen garantert måte å sjekke)
+            testAutoplay();
+            
+            log('Kompatibilitetssjekk fullført.');
+        }
+        
+        function updateCompatibilityItem(id, supported, feature) {
+            const item = document.getElementById(id);
+            const span = item.querySelector('span');
+            
+            if (supported) {
+                span.textContent = 'Støttet';
+                span.className = 'success';
+                log(`${feature}: Støttet`, 'success');
+            } else {
+                span.textContent = 'Ikke støttet';
+                span.className = 'error';
+                log(`${feature}: Ikke støttet`, 'error');
+            }
+        }
+        
+        async function testAutoplay() {
+            try {
+                const audio = new Audio('/static/sounds/pristine.mp3');
+                audio.volume = 0.01; // Veldig lav volum for testing
+                
+                // Prøv å spille av
+                const playPromise = audio.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        // Autoplay er tillatt
+                        updateCompatibilityItem('autoplay-support', true, 'Autoplay');
+                        audio.pause();
+                        audio.currentTime = 0;
+                    }).catch(error => {
+                        // Autoplay er ikke tillatt
+                        updateCompatibilityItem('autoplay-support', false, 'Autoplay');
+                        log('Autoplay blokkert: ' + error.message, 'warning');
+                        showManualPlayButton();
+                    });
+                }
+            } catch (error) {
+                updateCompatibilityItem('autoplay-support', false, 'Autoplay');
+                log('Autoplay test feilet: ' + error.message, 'error');
+                showManualPlayButton();
+            }
+        }
+        
+        function showManualPlayButton() {
+            document.getElementById('manual-play-container').style.display = 'block';
+            document.getElementById('manual-play-button').addEventListener('click', function() {
+                testDirectSound('pristine.mp3', true);
+            });
+        }
+        
+        // Lydtesting
+        function testDirectSound(soundFile, userInitiated = false) {
+            log(`Tester direkte lydavspilling: ${soundFile}`);
+            
+            try {
+                const audio = new Audio(`/static/sounds/${soundFile}`);
+                
+                audio.oncanplaythrough = function() {
+                    log(`Lyd lastet: ${soundFile}`, 'success');
+                };
+                
+                audio.onplay = function() {
+                    log(`Lyd spilles: ${soundFile}`, 'success');
+                };
+                
+                audio.onerror = function(e) {
+                    log(`Feil ved lydavspilling: ${e.target.error.code}`, 'error');
+                    showManualPlayButton();
+                };
+                
+                const playPromise = audio.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        // Vellykket avspilling
+                        if (userInitiated) {
+                            log('Manuell lydavspilling vellykket!', 'success');
+                        }
+                    }).catch(error => {
+                        log(`Kunne ikke spille lyd: ${error.message}`, 'error');
+                        showManualPlayButton();
+                        
+                        // Prøv vibrasjon som fallback
+                        if ('vibrate' in navigator) {
+                            navigator.vibrate(200);
+                            log('Vibrerte som fallback for lyd', 'warning');
+                        }
+                    });
+                }
+            } catch (error) {
+                log(`Feil ved lydavspilling: ${error.message}`, 'error');
+                showManualPlayButton();
+            }
+        }
+        
+        // Test HTML5 Audio
+        document.getElementById('test-html5-audio').addEventListener('click', function() {
+            log('Tester HTML5 Audio Element...');
+            const audio = document.createElement('audio');
+            
+            if (audio.canPlayType('audio/mpeg')) {
+                log('Enheten støtter MP3-formatet', 'success');
+                testDirectSound('pristine.mp3', true);
+            } else {
+                log('Enheten støtter IKKE MP3-formatet', 'error');
+            }
+        });
+        
+        // Test Web Audio API
+        document.getElementById('test-webaudio-api').addEventListener('click', function() {
+            log('Tester Web Audio API...');
+            
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                const audioContext = new AudioContext();
+                
+                log(`Audio Context samplerate: ${audioContext.sampleRate}`, 'info');
+                
+                fetch('/static/sounds/pristine.mp3')
+                    .then(response => response.arrayBuffer())
+                    .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+                    .then(audioBuffer => {
+                        const source = audioContext.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(audioContext.destination);
+                        source.start(0);
+                        log('Web Audio API avspilling vellykket!', 'success');
+                    })
+                    .catch(error => {
+                        log(`Web Audio API feil: ${error.message}`, 'error');
+                    });
+            } catch (error) {
+                log(`Web Audio API ikke tilgjengelig: ${error.message}`, 'error');
+            }
+        });
+        
+        // Service Worker
+        document.getElementById('register-sw').addEventListener('click', function() {
+            registerServiceWorker();
+        });
+        
+        async function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                try {
+                    log('Registrerer Service Worker...');
+                    serviceWorkerRegistration = await navigator.serviceWorker.register('/static/sw.js');
+                    log('Service Worker registrert!', 'success');
+                    
+                    // Aktiver testknappene
+                    document.getElementById('test-sw-sound').disabled = false;
+                    document.getElementById('test-sw-high-priority').disabled = false;
+                    
+                    // Lytt etter meldinger fra service worker
+                    navigator.serviceWorker.addEventListener('message', function(event) {
+                        log(`Melding fra Service Worker: ${JSON.stringify(event.data)}`, 'info');
+                    });
+                    
+                } catch (error) {
+                    log(`Service Worker registrering feilet: ${error.message}`, 'error');
+                }
+            } else {
+                log('Service Workers støttes ikke av denne nettleseren.', 'error');
+            }
+        }
+        
+        // Test Service Worker lyd
+        document.getElementById('test-sw-sound').addEventListener('click', function() {
+            testServiceWorkerSound('normal');
+        });
+        
+        document.getElementById('test-sw-high-priority').addEventListener('click', function() {
+            testServiceWorkerSound('high');
+        });
+        
+        function testServiceWorkerSound(priority) {
+            if (!serviceWorkerRegistration || !navigator.serviceWorker.controller) {
+                log('Service Worker er ikke registrert eller aktiv ennå.', 'error');
+                return;
+            }
+            
+            const soundFile = priority === 'high' ? 'alert.mp3' : 'pristine.mp3';
+            log(`Tester Service Worker lyd med prioritet: ${priority}, lyd: ${soundFile}`);
+            
+            navigator.serviceWorker.controller.postMessage({
+                action: 'playSound',
+                sound: soundFile,
+                priority: priority
+            });
+        }
+        
+        // Notifikasjoner
+        document.getElementById('test-notification').addEventListener('click', function() {
+            testNotification(false);
+        });
+        
+        document.getElementById('test-notification-sound').addEventListener('click', function() {
+            testNotification(true);
+        });
+        
+        function setPriority(priority) {
+            currentPriority = priority;
+            
+            // Oppdater UI
+            document.querySelectorAll('.priority-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            
+            const selectedOption = document.querySelector(`.priority-option[onclick="setPriority('${priority}')"]`);
+            if (selectedOption) {
+                selectedOption.classList.add('active');
+            }
+            
+            log(`Prioritet satt til: ${priority}`);
+        }
+        
+        async function testNotification(withSound) {
+            log(`Tester notifikasjon (med lyd: ${withSound}, prioritet: ${currentPriority})`);
+            
+            if (!('Notification' in window)) {
+                log('Denne nettleseren støtter ikke notifikasjoner.', 'error');
+                return;
+            }
+            
+            if (Notification.permission !== 'granted') {
+                log('Ber om tillatelse til å vise notifikasjoner...');
+                const permission = await Notification.requestPermission();
+                
+                if (permission !== 'granted') {
+                    log('Tillatelse til notifikasjoner ble avslått!', 'error');
+                    return;
+                }
+                
+                log('Tillatelse til notifikasjoner gitt!', 'success');
+            }
+            
+            try {
+                const options = {
+                    body: `Dette er en ${currentPriority === 'high' ? 'høyprioritets' : 'normal'} testnotifikasjon`,
+                    icon: '/static/images/notification-icon.png',
+                    badge: '/static/images/badge-icon.png',
+                    requireInteraction: currentPriority === 'high',
+                    vibrate: currentPriority === 'high' 
+                        ? [200, 100, 200, 100, 200] 
+                        : [100, 50, 100],
+                    tag: 'test-notification',
+                    renotify: true
+                };
+                
+                if (withSound) {
+                    options.silent = false;
+                    // Service Worker håndterer selve lyden
+                }
+                
+                const notification = new Notification('SmartReminder Test', options);
+                
+                if (withSound) {
+                    // Spill lyd direkte siden noen nettlesere ignorerer silent: false
+                    const soundFile = currentPriority === 'high' ? 'alert.mp3' : 'pristine.mp3';
+                    testDirectSound(soundFile, true);
+                    
+                    if (serviceWorkerRegistration && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                            action: 'playSound',
+                            sound: soundFile,
+                            priority: currentPriority
+                        });
+                    }
+                }
+                
+                notification.onclick = function() {
+                    log('Notifikasjon klikket', 'info');
+                    notification.close();
+                };
+                
+                log('Notifikasjon vist!', 'success');
+                
+                // Vibrer også som ekstra feedback
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(currentPriority === 'high' 
+                        ? [200, 100, 200, 100, 200] 
+                        : [100, 50, 100]);
+                }
+            } catch (error) {
+                log(`Kunne ikke vise notifikasjon: ${error.message}`, 'error');
+            }
+        }
+        
+        // Vibrasjon
+        function testVibration(pattern) {
+            if ('vibrate' in navigator) {
+                log(`Tester vibrasjon med mønster: ${pattern.join(', ')}`);
+                navigator.vibrate(pattern);
+                log('Vibrasjonskommando sendt!', 'success');
+            } else {
+                log('Denne enheten støtter ikke vibrasjon.', 'error');
+            }
+        }
+        
+        // Kjøreskole modus
+        document.getElementById('test-driving-school').addEventListener('click', function() {
+            testDrivingSchoolMode();
+        });
+        
+        function testDrivingSchoolMode() {
+            const forceHighPriority = document.getElementById('force-high-priority').checked;
+            
+            log(`Tester Kjøreskole Modus ${forceHighPriority ? '(Høy prioritet)' : ''}`);
+            
+            // Simuler kjøreskole-notifikasjon
+            if (!('Notification' in window)) {
+                log('Denne nettleseren støtter ikke notifikasjoner.', 'error');
+                return;
+            }
+            
+            if (Notification.permission !== 'granted') {
+                Notification.requestPermission().then(function(permission) {
+                    if (permission !== 'granted') {
+                        log('Tillatelse til notifikasjoner ble avslått!', 'error');
+                        return;
+                    }
+                    
+                    showDrivingSchoolNotification(forceHighPriority);
+                });
+            } else {
+                showDrivingSchoolNotification(forceHighPriority);
+            }
+        }
+        
+        function showDrivingSchoolNotification(forceHighPriority) {
+            try {
+                const options = {
+                    body: forceHighPriority 
+                        ? 'VIKTIG! Kjøretime i morgen kl. 10:00. Bekreft oppmøte.' 
+                        : 'Påminnelse om kjøretime i morgen kl. 10:00.',
+                    icon: '/static/images/notification-icon.png',
+                    badge: '/static/images/badge-icon.png',
+                    requireInteraction: forceHighPriority,
+                    vibrate: forceHighPriority 
+                        ? [300, 100, 300, 100, 300, 100, 300] 
+                        : [100, 50, 100],
+                    tag: 'driving-school',
+                    renotify: true,
+                    actions: [
+                        {
+                            action: 'confirm',
+                            title: 'Bekreft',
+                            icon: '/static/images/confirm-icon.png'
+                        },
+                        {
+                            action: 'reschedule',
+                            title: 'Endre',
+                            icon: '/static/images/reschedule-icon.png'
+                        }
+                    ]
+                };
+                
+                const notification = new Notification(
+                    forceHighPriority ? '🚨 VIKTIG KJØRESKOLEVARSEL' : 'Kjøreskole påminnelse', 
+                    options
+                );
+                
+                // Spill høyprioritetslyd
+                const soundFile = forceHighPriority ? 'alert.mp3' : 'pristine.mp3';
+                testDirectSound(soundFile, true);
+                
+                if (serviceWorkerRegistration && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        action: 'playSound',
+                        sound: soundFile,
+                        priority: forceHighPriority ? 'high' : 'normal'
+                    });
+                }
+                
+                notification.onclick = function() {
+                    log('Kjøreskole-notifikasjon klikket', 'info');
+                };
+                
+                log('Kjøreskole-notifikasjon vist!', 'success');
+                
+                // Vibrer også som ekstra feedback
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(forceHighPriority 
+                        ? [300, 100, 300, 100, 300, 100, 300] 
+                        : [100, 50, 100]);
+                }
+                
+            } catch (error) {
+                log(`Kunne ikke vise kjøreskole-notifikasjon: ${error.message}`, 'error');
+            }
+        }
+        
+        // Kjør kompatibilitetssjekk ved oppstart
+        window.addEventListener('load', function() {
+            setTimeout(checkCompatibility, 500);
+            
+            // Sjekk om service worker allerede er registrert
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistration().then(function(registration) {
+                    if (registration) {
+                        serviceWorkerRegistration = registration;
+                        log('Service Worker allerede registrert', 'success');
+                        
+                        // Aktiver testknappene
+                        document.getElementById('test-sw-sound').disabled = false;
+                        document.getElementById('test-sw-high-priority').disabled = false;
+                        
+                        // Lytt etter meldinger
+                        navigator.serviceWorker.addEventListener('message', function(event) {
+                            log(`Melding fra Service Worker: ${JSON.stringify(event.data)}`, 'info');
+                        });
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

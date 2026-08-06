@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test e-post</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #007bff;">✅ Test e-post</h2>
+        
+        <p>Hei!</p>
+        
+        <p>Dette er en test-e-post fra SmartReminder for å bekrefte at e-post-konfigurasjonen fungerer korrekt.</p>
+        
+        <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+            <p style="margin: 0;"><strong>E-post-adresse:</strong> {{ user_email }}</p>
+            <p style="margin: 5px 0 0 0;"><strong>Sendt:</strong> {{ moment().format('YYYY-MM-DD HH:mm:ss') }}</p>
+        </div>
+        
+        <p>Hvis du mottar denne e-posten, fungerer systemet som det skal!</p>
+        
+        <p>Mvh,<br>SmartReminder-teamet</p>
+    </div>
+</body>
+</html>

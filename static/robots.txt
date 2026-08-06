@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /data/
+Disallow: /email-settings
+Disallow: /test-email
+
+Sitemap: https://smartremind-production.up.railway.app/sitemap.xml

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Worker Sound Test</title>
+</head>
+<body>
+    <h1>Service Worker Sound Test</h1>
+    <p>This page tests the service worker's ability to trigger sound playback.</p>
+    
+    <button id="registerBtn">Register Service Worker</button>
+    <button id="testSoundBtn" disabled>Test Sound via Service Worker</button>
+    
+    <div>
+        <label for="soundSelect">Select Sound:</label>
+        <select id="soundSelect">
+            <option value="pristine.mp3">Pristine</option>
+            <option value="ding.mp3">Ding</option>
+            <option value="chime.mp3">Chime</option>
+            <option value="alert.mp3">Alert</option>
+        </select>
+    </div>
+    
+    <hr>
+    <h2>Debug Log</h2>
+    <pre id="log"></pre>
+    
+    <script>
+        const logElement = document.getElementById('log');
+        const registerBtn = document.getElementById('registerBtn');
+        const testSoundBtn = document.getElementById('testSoundBtn');
+        const soundSelect = document.getElementById('soundSelect');
+        let swRegistration = null;
+        
+        function log(message) {
+            const timestamp = new Date().toISOString();
+            logElement.textContent += `${timestamp}: ${message}\n`;
+            console.log(message);
+        }
+        
+        // Play sound function
+        function playNotificationSound(sound) {
+            try {
+                const soundFile = sound || 'pristine.mp3';
+                log(`Attempting to play sound: ${soundFile}`);
+                
+                const audio = new Audio(`/static/sounds/${soundFile}`);
+                
+                // Set up audio to play when ready
+                audio.oncanplaythrough = function() {
+                    log(`Sound loaded and ready to play`);
+                    const playPromise = audio.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            log(`Sound playing successfully`);
+                        }).catch(error => {
+                            log(`Error playing notification sound: ${error}`);
+                        });
+                    }
+                };
+                
+                // Handle errors
+                audio.onerror = function(error) {
+                    log(`Error loading notification sound: ${error}`);
+                };
+            } catch (error) {
+                log(`Failed to play notification sound: ${error}`);
+            }
+        }
+        
+        // Check if service worker is supported
+        if ('serviceWorker' in navigator) {
+            log('Service Worker is supported');
+            
+            // Listen for messages from service worker
+            navigator.serviceWorker.addEventListener('message', function(event) {
+                log(`Received message from Service Worker: ${JSON.stringify(event.data)}`);
+                
+                if (event.data && event.data.type === 'PLAY_NOTIFICATION_SOUND') {
+                    log(`Playing sound requested by Service Worker: ${event.data.sound}`);
+                    playNotificationSound(event.data.sound);
+                }
+            });
+            
+            registerBtn.addEventListener('click', function() {
+                log('Registering service worker...');
+                
+                navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                        log(`Service Worker registered with scope: ${registration.scope}`);
+                        swRegistration = registration;
+                        testSoundBtn.disabled = false;
+                    })
+                    .catch(function(error) {
+                        log(`Service Worker registration failed: ${error}`);
+                    });
+            });
+            
+            testSoundBtn.addEventListener('click', function() {
+                const selectedSound = soundSelect.value;
+                log(`Testing sound playback with sound: ${selectedSound}`);
+                
+                if (swRegistration && swRegistration.active) {
+                    // Send message to service worker
+                    swRegistration.active.postMessage({
+                        type: 'PLAY_NOTIFICATION_SOUND',
+                        sound: selectedSound
+                    });
+                    log('Message sent to Service Worker');
+                } else {
+                    log('Service Worker not active yet, trying direct playback');
+                    playNotificationSound(selectedSound);
+                }
+            });
+            
+            // Check for existing service worker registration
+            navigator.serviceWorker.ready.then(function(registration) {
+                log('Service Worker is already registered and active');
+                swRegistration = registration;
+                testSoundBtn.disabled = false;
+            }).catch(function(error) {
+                log(`Error checking service worker: ${error}`);
+            });
+            
+        } else {
+            log('Service Worker is NOT supported in this browser');
+        }
+        
+        // Check notification permissions
+        if ('Notification' in window) {
+            log(`Notification permission: ${Notification.permission}`);
+        } else {
+            log('Notifications are NOT supported in this browser');
+        }
+        
+        // Check if audio API is available
+        if (typeof Audio !== 'undefined') {
+            log('Audio API is supported');
+            
+            // Test direct sound playback
+            document.addEventListener('click', function() {
+                // After first user interaction, try to play a sound to check autoplay policy
+                const audio = new Audio('/static/sounds/pristine.mp3');
+                audio.volume = 0.1; // Low volume for testing
+                audio.play().then(() => {
+                    log('Automatic sound playback is allowed after user interaction');
+                }).catch(error => {
+                    log(`Automatic sound playback failed: ${error}`);
+                });
+            }, { once: true });
+        } else {
+            log('Audio API is NOT supported in this browser');
+        }
+    </script>
+</body>
+</html>

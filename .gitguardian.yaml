@@ -1,0 +1,10 @@
+# GitGuardian-konfig: ignorer kjente falske positive (test-fixtures + eksempelfiler).
+# Ekte hemmeligheter ligger kun i miljøvariabler (Railway), aldri i repoet.
+version: 2
+secret:
+  ignored-paths:
+    - "tests/**"
+    - "README.txt"
+    - "README.md"
+    - ".env.example"
+  ignored-matches: []

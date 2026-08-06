@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Test</title>
+</head>
+<body>
+    <h1>Sound Test</h1>
+    <p>Click the buttons below to test sound playback:</p>
+    
+    <button onclick="playSound('pristine.mp3')">Play Pristine</button>
+    <button onclick="playSound('ding.mp3')">Play Ding</button>
+    <button onclick="playSound('chime.mp3')">Play Chime</button>
+    <button onclick="playSound('alert.mp3')">Play Alert</button>
+    
+    <hr>
+    <h2>Audio with Autoplay</h2>
+    <audio id="audioElement" controls>
+        <source src="/static/sounds/pristine.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    <button onclick="document.getElementById('audioElement').play()">Play Audio Element</button>
+    
+    <hr>
+    <h2>Debug Log</h2>
+    <pre id="log"></pre>
+    
+    <script>
+        function log(message) {
+            const logElement = document.getElementById('log');
+            logElement.textContent += new Date().toISOString() + ': ' + message + '\n';
+            console.log(message);
+        }
+        
+        function playSound(soundFile) {
+            try {
+                log(`Attempting to play ${soundFile}`);
+                const audio = new Audio(`/static/sounds/${soundFile}`);
+                
+                // Set up audio to play when ready
+                audio.oncanplaythrough = function() {
+                    log(`Sound ${soundFile} loaded and ready to play`);
+                    const playPromise = audio.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise
+                            .then(() => {
+                                log(`Sound ${soundFile} playing successfully`);
+                            })
+                            .catch(error => {
+                                log(`Error playing sound ${soundFile}: ${error}`);
+                            });
+                    }
+                };
+                
+                // Handle errors
+                audio.onerror = function(e) {
+                    log(`Error loading sound ${soundFile}: ${e.type}`);
+                };
+                
+            } catch (error) {
+                log(`Failed to create Audio object: ${error}`);
+            }
+        }
+        
+        // Test if Audio API is supported
+        if (typeof Audio !== 'undefined') {
+            log('Audio API is supported in this browser');
+        } else {
+            log('WARNING: Audio API is NOT supported in this browser');
+        }
+        
+        // Check for autoplay policy
+        document.addEventListener('DOMContentLoaded', function() {
+            navigator.permissions.query({name: 'autoplay'}).then(function(permissionStatus) {
+                log(`Autoplay permission status: ${permissionStatus.state}`);
+                
+                permissionStatus.onchange = function() {
+                    log(`Autoplay permission changed to: ${this.state}`);
+                };
+            }).catch(error => {
+                log(`Cannot query autoplay permission: ${error}`);
+            });
+        });
+    </script>
+</body>
+</html>

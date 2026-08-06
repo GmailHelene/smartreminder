@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test e-post fra Smart Påminner Pro</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; }
+        .header { background: #007bff; color: white; padding: 20px; text-align: center; }
+        .content { padding: 30px; }
+        .test-info { background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✉️ Test e-post</h1>
+        </div>
+        
+        <div class="content">
+            <h2>E-post funksjon fungerer!</h2>
+            <p>Gratulerer! Din e-post konfigurasjon fungerer riktig.</p>
+            
+            <div class="test-info">
+                <h4>Test informasjon:</h4>
+                <p><strong>Sendt til:</strong> {{ recipient }}</p>
+                <p><strong>Sendt fra:</strong> {{ sender }}</p>
+                <p><strong>Tidspunkt:</strong> {{ timestamp | strftime('%d.%m.%Y %H:%M:%S') }}</p>
+                <p><strong>Server:</strong> {{ mail_server }}</p>
+            </div>
+            
+            <p>Du kan nå være sikker på at alle e-post notifikasjoner vil fungere:</p>
+            <ul>
+                <li>✅ Påminnelse-notifikasjoner</li>
+                <li>✅ Delte påminnelser</li>
+                <li>✅ Tavle-invitasjoner</li>
+                <li>✅ Tavle-oppdateringer</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>Smart Påminner Pro © 2024</p>
+            <p><small>Dette er en automatisk test-e-post</small></p>
+        </div>
+    </div>
+</body>
+</html>

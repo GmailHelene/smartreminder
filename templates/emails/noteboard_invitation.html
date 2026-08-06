@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitasjon til delt tavle</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0; 
+            padding: 0; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 20px auto; 
+            background: white; 
+            border-radius: 15px; 
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .header { 
+            background: linear-gradient(135deg, #28a745, #20c997); 
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+        }
+        .content { 
+            padding: 30px; 
+            color: #333;
+        }
+        .access-code {
+            background: #f8f9fa;
+            border: 2px dashed #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border-radius: 10px;
+        }
+        .steps {
+            background: #fff;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin-bottom: 15px;
+            padding-left: 30px;
+            position: relative;
+        }
+        .step:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #28a745;
+            font-weight: bold;
+        }
+        .board-info { 
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef); 
+            border-left: 5px solid #28a745; 
+            padding: 25px; 
+            margin: 20px 0; 
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .footer { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            text-align: center; 
+            color: #6c757d; 
+            font-size: 0.9rem;
+        }
+        .btn { 
+            display: inline-block; 
+            padding: 15px 30px; 
+            background: linear-gradient(135deg, #28a745, #20c997); 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 25px; 
+            margin: 10px 5px; 
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .access-code { 
+            font-size: 28px; 
+            font-weight: bold; 
+            background: linear-gradient(135deg, #e9ecef, #f8f9fa); 
+            color: #495057;
+            padding: 20px; 
+            text-align: center; 
+            border-radius: 12px; 
+            margin: 20px 0; 
+            letter-spacing: 4px; 
+            border: 3px solid #28a745;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin: 0; font-size: 1.8rem;">🤝 INVITASJON TIL DELT TAVLE</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 1.1rem;">Samarbeid og del notater - ikke påminnelse</p>
+        </div>
+        
+        <div class="content">
+            <div style="display: inline-block; background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; padding: 12px 20px; border-radius: 25px; font-size: 1rem; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 8px rgba(255,107,53,0.3);">
+                📋 DELT TAVLE - IKKE PÅMINNELSE
+            </div>
+            
+            <h2>Hei!</h2>
+            <p style="font-size: 1.1rem; background: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+                <strong>{{ invited_by }}</strong> har invitert deg til å samarbeide på en <strong>delt tavle</strong> i SmartRemind!
+                <br><em>Dette er en invitasjon til samarbeid - ikke en påminnelse.</em>
+            </p>
+            
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="{{ app_url if app_url else 'https://smartremind-production.up.railway.app' }}" class="btn" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; display: inline-block; font-weight: bold; font-size: 1.1rem;">
+                    📱 Åpne SmartRemind appen
+                </a>
+            </div>
+            
+            <div class="board-info">
+                <h3>{{ board.title }}</h3>
+                {% if board.description %}
+                <p>{{ board.description }}</p>
+                {% endif %}
+                <p><strong>Opprettet av:</strong> {{ board.created_by }}</p>
+                <p><strong>Opprettet:</strong> {{ board.created_at | as_datetime | strftime('%d.%m.%Y %H:%M') }}</p>
+            </div>
+            
+            <h3>Bruk tilgangskode:</h3>
+            <div class="access-code">{{ board.access_code }}</div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <p style="color: #6c757d; margin: 10px 0;">
+                    1. Last ned og installer appen<br>
+                    2. Registrer deg eller logg inn<br>
+                    3. Gå til "Mine tavler" og klikk "Bli med på tavle"<br>
+                    4. Skriv inn tilgangskoden: <strong>{{ board.access_code }}</strong>
+                </p>
+            </div>
+            
+            <p style="color: #666; font-size: 0.95rem; margin-top: 30px;">
+                💡 <strong>Tips:</strong> Du kan samarbeide på denne delte tavlen, legge til egne notater, og se andres oppdateringer i sanntid!
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Smart Påminner Pro © 2024</strong></p>
+            <p style="background: #fff3cd; padding: 10px; border-radius: 5px; border: 1px solid #ffc107; color: #856404; font-weight: bold;">
+                📋 Du får denne invitasjonen fordi <strong>{{ invited_by }}</strong> har invitert deg til den delte tavlen "<strong>{{ board.title }}</strong>"
+            </p>
+            <p style="font-size: 0.9rem; color: #dc3545; margin-top: 15px; font-weight: bold; background: #f8d7da; padding: 8px; border-radius: 5px;">
+                ⚠️ Dette er en invitasjon til samarbeid - ikke en påminnelse
+            </p>
+        </div>
+    </div>
+</body>
+</html>

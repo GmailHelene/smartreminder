@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalenderinvitasjon fra {{ shared_by }}</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0; 
+            padding: 0; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 20px auto; 
+            background: white; 
+            border-radius: 15px; 
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .content { 
+            padding: 30px; 
+        }
+        .calendar-event {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border-left: 5px solid #007bff;
+        }
+        .priority-high { border-left-color: #dc3545; }
+        .priority-medium { border-left-color: #ffc107; }
+        .priority-low { border-left-color: #28a745; }
+        .priority-høy { border-left-color: #dc3545; }
+        .priority-lav { border-left-color: #28a745; }
+        .event-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .detail-item {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 2px solid #007bff;
+            font-size: 0.9rem;
+        }
+        .detail-item.time { border-color: #007bff; }
+        .detail-item.priority-high { border-color: #dc3545; }
+        .detail-item.priority-medium { border-color: #ffc107; }
+        .detail-item.priority-low { border-color: #28a745; }
+        .detail-item.priority-høy { border-color: #dc3545; }
+        .detail-item.priority-lav { border-color: #28a745; }
+        .detail-item.category { border-color: #6c757d; }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            margin: 20px 0;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .button:hover {
+            background: linear-gradient(135deg, #20c997, #28a745);
+        }
+        .personal-message {
+            background: rgba(0, 123, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .attachment-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px dashed #007bff;
+        }
+        @media (max-width: 600px) {
+            .container { margin: 10px; }
+            .content { padding: 20px; }
+            .header { padding: 20px; }
+            .event-details { flex-direction: column; gap: 10px; }
+            .detail-item { text-align: center; margin-bottom: 10px; }
+            .calendar-event { padding: 20px; }
+            .button { 
+                padding: 12px 24px; 
+                font-size: 1rem;
+                display: block;
+                text-align: center;
+                margin: 15px auto;
+                width: fit-content;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin: 0; font-size: 1.8rem;">📅 Kalenderinvitasjon</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">Fra {{ shared_by }}</p>
+        </div>
+        
+        <div class="content">
+            <p style="font-size: 1.1rem;"><strong>{{ shared_by }}</strong> har invitert deg til en kalenderhendelse:</p>
+            
+            <div class="calendar-event priority-{{ reminder.priority.lower() if reminder.priority else 'medium' }}">
+                <h2 style="margin-top: 0; color: #333; font-size: 1.5rem;">📋 {{ reminder.title or 'Påminnelse' }}</h2>
+                
+                {% if reminder.description %}
+                <p style="margin: 15px 0; font-size: 1rem;"><strong>📝 Beskrivelse:</strong><br>{{ reminder.description }}</p>
+                {% endif %}
+                
+                <div class="event-details">
+                    <div class="detail-item time">
+                        <strong>🕒 Tid:</strong> {{ reminder.datetime or 'Ikke spesifisert' }}
+                    </div>
+                    <div class="detail-item priority-{{ reminder.priority.lower() if reminder.priority else 'medium' }}">
+                        <strong>⚡ Prioritet:</strong> {{ reminder.priority or 'Medium' }}
+                    </div>
+                    <div class="detail-item category">
+                        <strong>📂 Kategori:</strong> {{ reminder.category or 'Generell' }}
+                    </div>
+                </div>
+                
+                {% if personal_message %}
+                <div class="personal-message">
+                    <strong>💬 Personlig melding fra {{ shared_by }}:</strong><br>
+                    <em style="font-size: 1rem;">{{ personal_message }}</em>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="attachment-info">
+                <p style="margin: 0; font-weight: bold; color: #007bff;">📎 Kalenderinvitasjon vedlagt</p>
+                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Åpne den vedlagte .ics-filen for å legge til hendelsen i din kalender (Outlook, Google Calendar, Apple Calendar, etc.)</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ app_url }}/login" class="button">
+                    🚀 Åpne SmartReminder
+                </a>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 30px;">
+                <h4 style="margin-top: 0; color: #007bff;">💡 Slik legger du til i din kalender:</h4>
+                <ul style="margin: 0; padding-left: 20px; font-size: 0.9rem;">
+                    <li><strong>Outlook:</strong> Åpne den vedlagte .ics-filen direkte</li>
+                    <li><strong>Google Calendar:</strong> Last ned filen og importer via "Importer hendelser"</li>
+                    <li><strong>Apple Calendar:</strong> Dobbeltklikk på .ics-filen</li>
+                    <li><strong>Mobil:</strong> Trykk på den vedlagte filen og velg din kalenderapp</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>SmartReminder Pro</strong> - Din intelligente påminnelsesassistent</p>
+            <p style="font-size: 0.8rem; color: #999; margin-top: 10px;">
+                Denne kalenderinvitasjonen ble sendt av {{ shared_by }} via SmartReminder.<br>
+                For spørsmål om hendelsen, kontakt {{ shared_by }} direkte.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

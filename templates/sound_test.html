@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lydtest - SmartReminder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-5">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3>Lydtest for Påminnelser</h3>
+            </div>
+            <div class="card-body">
+                <p class="alert alert-info">Denne siden hjelper deg med å teste at påminnelselyder fungerer korrekt på enheten din.</p>
+                
+                <h4 class="mt-4">1. Test direkte lydavspilling</h4>
+                <p>Trykk på knappene for å spille av lyder direkte:</p>
+                
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    <button class="btn btn-outline-primary" onclick="playSound('pristine.mp3')">
+                        Spill standardlyd
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="playSound('ding.mp3')">
+                        Spill ding-lyd
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="playSound('chime.mp3')">
+                        Spill chime-lyd
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="playSound('alert.mp3')">
+                        Spill alert-lyd
+                    </button>
+                </div>
+                
+                <h4 class="mt-4">2. Test notifikasjonslyd via Service Worker</h4>
+                <p>Dette simulerer hvordan en påminnelse-notifikasjon vil spille lyd:</p>
+                
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    <button class="btn btn-outline-success" onclick="testNotificationSound('pristine.mp3')">
+                        Test standard notifikasjon
+                    </button>
+                    <button class="btn btn-outline-success" onclick="testNotificationSound('ding.mp3')">
+                        Test ding notifikasjon
+                    </button>
+                    <button class="btn btn-outline-success" onclick="testNotificationSound('chime.mp3')">
+                        Test chime notifikasjon
+                    </button>
+                    <button class="btn btn-outline-success" onclick="testNotificationSound('alert.mp3')">
+                        Test alert notifikasjon
+                    </button>
+                </div>
+                
+                <h4 class="mt-4">3. Test lokal varsling med lyd</h4>
+                <p>Dette simulerer en varsling som vises direkte i appen:</p>
+                
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    <button class="btn btn-outline-warning" onclick="testLocalNotification('pristine.mp3')">
+                        Test lokal varsling (standard)
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="testLocalNotification('ding.mp3')">
+                        Test lokal varsling (ding)
+                    </button>
+                </div>
+                
+                <hr>
+                
+                <div class="alert alert-warning mt-4">
+                    <h5>Feilsøkingstips:</h5>
+                    <ul>
+                        <li>Hvis ingen lyd spilles, sjekk at enheten ikke er i lydløs modus</li>
+                        <li>Noen mobilnettlesere krever brukerinteraksjon før lyd kan spilles</li>
+                        <li>Sjekk at nettleseren har tillatelse til å vise notifikasjoner</li>
+                        <li>Åpne utviklerverktøy i nettleseren for å se feilmeldinger</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="/dashboard" class="btn btn-secondary">Tilbake til dashbord</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Direct sound playback
+        function playSound(soundFile) {
+            try {
+                console.log('Playing sound directly:', soundFile);
+                const audio = new Audio(`/static/sounds/${soundFile}`);
+                audio.volume = 1.0;
+                
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        console.log('Sound played successfully!');
+                        showResult('success', `Lyd spilt direkte: ${soundFile}`);
+                    }).catch(error => {
+                        console.error('Error playing sound:', error);
+                        showResult('danger', `Feil ved direkteavspilling: ${error.message}`);
+                        
+                        // Create a button for user to try manually
+                        createManualPlayButton(soundFile);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to play sound:', error);
+                showResult('danger', `Feil ved direkteavspilling: ${error.message}`);
+            }
+        }
+        
+        // Test notification sound via service worker
+        function testNotificationSound(soundFile) {
+            if (!('serviceWorker' in navigator)) {
+                showResult('danger', 'Service Worker støttes ikke av nettleseren din');
+                return;
+            }
+            
+            if (Notification.permission !== 'granted') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        sendTestNotification(soundFile);
+                    } else {
+                        showResult('warning', 'Notifikasjon-tillatelse ikke gitt');
+                    }
+                });
+            } else {
+                sendTestNotification(soundFile);
+            }
+        }
+        
+        // Send test notification
+        function sendTestNotification(soundFile) {
+            fetch('/api/send-test-notification', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sound: soundFile
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showResult('success', 'Test-notifikasjon sendt med lyd: ' + soundFile);
+                } else {
+                    showResult('danger', 'Feil ved sending av notifikasjon: ' + (data.error || 'Ukjent feil'));
+                }
+            })
+            .catch(error => {
+                console.error('Error sending test notification:', error);
+                showResult('danger', 'Feil ved sending av notifikasjon: ' + error.message);
+            });
+        }
+        
+        // Test local notification with sound
+        function testLocalNotification(soundFile) {
+            // First try to play the sound
+            const audio = new Audio(`/static/sounds/${soundFile}`);
+            audio.volume = 1.0;
+            
+            // Create and show notification toast
+            const toastContainer = document.createElement('div');
+            toastContainer.className = 'position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '9999';
+            
+            const toastEl = document.createElement('div');
+            toastEl.className = 'toast show';
+            toastEl.setAttribute('role', 'alert');
+            toastEl.setAttribute('aria-live', 'assertive');
+            toastEl.setAttribute('aria-atomic', 'true');
+            
+            const toastHeader = document.createElement('div');
+            toastHeader.className = 'toast-header';
+            toastHeader.innerHTML = `
+                <strong class="me-auto">📣 Test Notifikasjon</strong>
+                <small>Nå</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            `;
+            
+            const toastBody = document.createElement('div');
+            toastBody.className = 'toast-body';
+            toastBody.innerText = `Dette er en test-notifikasjon med lyd: ${soundFile}`;
+            
+            toastEl.appendChild(toastHeader);
+            toastEl.appendChild(toastBody);
+            toastContainer.appendChild(toastEl);
+            document.body.appendChild(toastContainer);
+            
+            // Try to play sound
+            audio.play()
+                .then(() => {
+                    console.log('Local notification sound played successfully');
+                })
+                .catch(error => {
+                    console.error('Error playing local notification sound:', error);
+                    
+                    // Create play button inside toast
+                    const playButton = document.createElement('button');
+                    playButton.className = 'btn btn-sm btn-primary mt-2';
+                    playButton.innerText = 'Spill varsellyd';
+                    playButton.onclick = function() {
+                        new Audio(`/static/sounds/${soundFile}`).play()
+                            .then(() => console.log('Sound played via button click'))
+                            .catch(err => console.error('Still failed to play sound:', err));
+                    };
+                    
+                    toastBody.appendChild(document.createElement('br'));
+                    toastBody.appendChild(playButton);
+                });
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (toastContainer.parentNode) {
+                    toastContainer.parentNode.removeChild(toastContainer);
+                }
+            }, 5000);
+        }
+        
+        // Create a manual play button for user interaction
+        function createManualPlayButton(soundFile) {
+            const container = document.createElement('div');
+            container.className = 'alert alert-warning mt-2';
+            container.innerHTML = `
+                <p>Nettleseren krever brukerinteraksjon for å spille lyd. Trykk på knappen under:</p>
+                <button class="btn btn-primary" id="manual-play-${soundFile.replace('.', '-')}">
+                    Spill lyd manuelt
+                </button>
+            `;
+            
+            document.querySelector('.card-body').appendChild(container);
+            
+            document.getElementById(`manual-play-${soundFile.replace('.', '-')}`).onclick = function() {
+                const audio = new Audio(`/static/sounds/${soundFile}`);
+                audio.volume = 1.0;
+                audio.play()
+                    .then(() => {
+                        showResult('success', 'Lyd spilt via manuell knapp');
+                        if (container.parentNode) {
+                            container.parentNode.removeChild(container);
+                        }
+                    })
+                    .catch(err => {
+                        showResult('danger', `Fortsatt feil ved avspilling: ${err.message}`);
+                    });
+            };
+        }
+        
+        // Show result message
+        function showResult(type, message) {
+            const resultArea = document.createElement('div');
+            resultArea.className = `alert alert-${type} mt-2`;
+            resultArea.innerHTML = message;
+            
+            const resultContainer = document.querySelector('.card-body');
+            resultContainer.appendChild(resultArea);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (resultArea.parentNode) {
+                    resultArea.parentNode.removeChild(resultArea);
+                }
+            }, 5000);
+        }
+        
+        // Register service worker if not already registered
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                .then(registration => {
+                    console.log('Service Worker registered:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Service Worker registration failed:', error);
+                });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Offline - Smart Påminner Pro{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <div class="py-5">
+        <i class="fas fa-wifi fa-5x text-muted mb-4" style="opacity: 0.3;"></i>
+        <h1 class="display-4">Du er offline</h1>
+        <p class="lead mb-4">Sjekk internettforbindelsen din og prøv igjen.</p>
+        <button onclick="window.location.reload()" class="btn btn-primary btn-lg">
+            <i class="fas fa-sync-alt"></i> Prøv igjen
+        </button>
+    </div>
+</div>
+{% endblock %}

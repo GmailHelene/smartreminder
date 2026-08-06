@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Fokusmoduser - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-brain me-2"></i>
+                        Fokusmoduser
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Velg en fokusmodus som passer dine behov. Hver modus tilpasser grensesnittet og notifikasjonsinnstillingene.
+                    </p>
+                    
+                    <form method="POST" action="{{ url_for('focus_modes') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="row">
+                            {% for mode_key, mode_data in focus_modes.items() %}
+                            <div class="col-md-6 mb-4">
+                                <div class="card h-100 {% if mode_key == current_focus_mode %}border-primary{% endif %}">
+                                    <div class="card-body">
+                                        <div class="form-check">
+                                            <input class="form-check-input" 
+                                                   type="radio" 
+                                                   name="focus_mode" 
+                                                   id="mode_{{ mode_key }}" 
+                                                   value="{{ mode_key }}"
+                                                   {% if mode_key == current_focus_mode %}checked{% endif %}>
+                                            <label class="form-check-label w-100" for="mode_{{ mode_key }}">
+                                                <h5 class="card-title">
+                                                    {% if mode_key == 'normal' %}🏠
+                                                    {% elif mode_key == 'silent' %}🔇
+                                                    {% elif mode_key == 'adhd' %}🎯
+                                                    {% elif mode_key == 'elderly' %}👵
+                                                    {% elif mode_key == 'work' %}💼
+                                                    {% elif mode_key == 'study' %}📚
+                                                    {% elif mode_key == 'driving_school' %}🚗
+                                                    {% else %}⚙️
+                                                    {% endif %}
+                                                    {{ mode_data.name }}
+                                                </h5>
+                                                <p class="card-text text-muted">
+                                                    {{ mode_data.description }}
+                                                </p>
+                                                {% if mode_key == current_focus_mode %}
+                                                <span class="badge bg-primary">Aktiv</span>
+                                                {% endif %}
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>
+                                Lagre fokusmodus
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Tilbake til dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Auto-save focus mode on change
+document.querySelectorAll('input[name="focus_mode"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const submitBtn = document.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Lagrer...';
+            submitBtn.disabled = true;
+        }
+        
+        setTimeout(() => {
+            this.form.submit();
+        }, 500);
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,732 @@
+/* Smart Påminner Pro - Custom Styles */
+
+:root {
+    --primary-color: #007bff;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #17a2b8;
+    --dark-color: #343a40;
+    --light-color: #f8f9fa;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Hover effects for dashboard cards */
+.hover-shadow {
+    transition: all 0.3s ease;
+}
+
+.hover-shadow:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.2) !important;
+}
+
+.reminder-item {
+    border-left: 4px solid var(--primary-color);
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.reminder-item.priority-high {
+    border-left-color: var(--danger-color);
+}
+
+.reminder-item.priority-medium {
+    border-left-color: var(--warning-color);
+}
+
+.reminder-item.priority-low {
+    border-left-color: var(--success-color);
+}
+
+.btn-floating {
+    border-radius: 50px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.btn-floating:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.stats-card {
+    background: linear-gradient(135deg, var(--primary-color), #0056b3);
+    color: white;
+}
+
+.category-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+}
+
+.offline {
+    filter: grayscale(50%);
+    opacity: 0.8;
+}
+
+.offline::before {
+    content: "📵 Offline-modus";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--warning-color);
+    color: var(--dark-color);
+    text-align: center;
+    padding: 8px;
+    z-index: 9999;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0 10px;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-floating {
+        bottom: 10px !important;
+        right: 10px !important;
+    }
+}
+
+/* PWA specific styles */
+/* PWA Install Button */
+.pwa-install-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: pulse 2s infinite;
+}
+
+.pwa-install-banner:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    50% { box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4); }
+    100% { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+}
+
+/* Standalone mode (PWA installed) */
+@media (display-mode: standalone) {
+    #installBtn {
+        display: none !important;
+    }
+    
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    .navbar {
+        padding-top: calc(env(safe-area-inset-top) + 0.5rem);
+    }
+}
+
+/* iOS PWA fixes */
+@media (display-mode: standalone) and (-webkit-touch-callout: none) {
+    .navbar {
+        padding-top: calc(env(safe-area-inset-top) + 1rem);
+    }
+}
+
+/* Offline indicator */
+.offline {
+    filter: grayscale(30%);
+}
+
+.offline::before {
+    content: "📵 Offline-modus aktiv";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--warning-color);
+    color: var(--dark-color);
+    text-align: center;
+    padding: 8px;
+    z-index: 9998;
+    font-weight: bold;
+    font-size: 0.875rem;
+}
+
+/* Touch improvements for mobile */
+@media (max-width: 768px) {
+    .btn {
+        min-height: 44px; /* Minimum touch target */
+        font-size: 1rem;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+        touch-action: manipulation; /* Prevent zoom on double-tap */
+    }
+    
+    /* Better spacing for mobile */
+    .container {
+        padding: 0 15px;
+    }
+    
+    /* Install button positioning on mobile */
+    #installBtn {
+        bottom: 80px !important;
+        right: 15px !important;
+        top: auto !important;
+        border-radius: 50px !important;
+        padding: 15px 20px !important;
+        font-size: 0.9rem !important;
+    }
+}
+
+/* Toast notifications */
+.toast-pwa {
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Loading states */
+.btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+.btn.loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    animation: button-loading-spinner 1s ease infinite;
+}
+
+@keyframes button-loading-spinner {
+    from {
+        transform: rotate(0turn);
+    }
+    to {
+        transform: rotate(1turn);
+    }
+}
+
+/* Form improvements */
+.form-floating {
+    margin-bottom: 1rem;
+}
+
+.was-validated .form-control:valid {
+    border-color: var(--success-color);
+}
+
+.was-validated .form-control:invalid {
+    border-color: var(--danger-color);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    /* Navbar improvements */
+    .navbar-brand {
+        font-size: 1rem;
+    }
+    
+    /* FullCalendar responsive improvements */
+    .fc-toolbar {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .fc-toolbar-chunk {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .fc-button-group .fc-button {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    /* Sticky note improvements */
+    .sticky-note {
+        transform: scale(0.85) !important;
+    }
+    
+    .sticky-note:hover {
+        transform: scale(0.9) !important;
+    }
+    
+    .board-canvas-container {
+        min-height: 400px !important;
+    }
+    
+    .sticky-note .note-content {
+        width: 160px !important;
+        min-height: 140px !important;
+        font-size: 0.75rem !important;
+    }
+    
+    /* Reminder cards */
+    .reminder-card {
+        margin-bottom: 15px;
+    }
+    
+    .reminder-item .card-body {
+        padding: 1rem 0.75rem;
+    }
+    
+    /* Stats cards */
+    .stats-card h3 {
+        font-size: 1.8rem;
+    }
+    
+    /* Form improvements */
+    .form-floating > label {
+        font-size: 0.875rem;
+    }
+    
+    /* Button improvements */
+    .btn-group-sm > .btn, .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    /* Dashboard columns */
+    .dashboard-col {
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Modal improvements */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    /* Container padding */
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    /* Card improvements */
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    /* Table improvements */
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    /* Badge improvements */
+    .badge {
+        font-size: 0.65rem;
+    }
+    
+    /* FullCalendar mobile */
+    .fc-toolbar {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .fc-toolbar-chunk {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .fc-button {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .fc-event {
+        font-size: 0.7rem;
+    }
+    
+    /* Noteboard mobile */
+    .note-actions {
+        opacity: 1 !important; /* Always visible on mobile */
+    }
+    
+    .user-avatar {
+        width: 20px !important;
+        height: 20px !important;
+        font-size: 0.6rem !important;
+    }
+    
+    /* Quick add button mobile */
+    .btn-floating {
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+    }
+}
+
+/* Very small screens (phones in portrait) */
+@media (max-width: 576px) {
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    /* Make stats cards smaller */
+    .stats-card h3 {
+        font-size: 1.25rem;
+    }
+    
+    .stats-card .card-body {
+        padding: 0.75rem;
+    }
+    
+    /* Smaller sticky notes */
+    .sticky-note .note-content {
+        width: 140px !important;
+        min-height: 120px !important;
+        font-size: 0.7rem !important;
+    }
+    
+    .board-canvas-container {
+        min-height: 300px !important;
+    }
+    
+    /* Stack form elements */
+    .form-row .col-md-2,
+    .form-row .col-md-4,
+    .form-row .col-md-6,
+    .form-row .col-md-8 {
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Smaller text */
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.3rem; }
+    h3 { font-size: 1.1rem; }
+    h4 { font-size: 1rem; }
+    h5 { font-size: 0.9rem; }
+    
+    /* Dropdown improvements */
+    .dropdown-menu {
+        font-size: 0.875rem;
+    }
+    
+    /* FullCalendar mobile improvements */
+    #calendar {
+        height: 400px !important;
+    }
+    
+    .fc-daygrid-event {
+        font-size: 0.75rem;
+    }
+    
+    .fc-button {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.1rem;
+    }
+    
+    /* Card improvements */
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    .reminder-item .card-body {
+        padding: 0.5rem;
+    }
+    
+    /* Form improvements */
+    .form-floating > .form-control,
+    .form-floating > .form-select {
+        font-size: 0.875rem;
+    }
+    
+    .form-floating > label {
+        font-size: 0.75rem;
+    }
+    
+    /* Button improvements for mobile */
+    .btn {
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    /* Navigation improvements */
+    .navbar-nav .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    /* Modal improvements */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    /* Share modal specific improvements */
+    #shareReminderModal .modal-content {
+        max-width: 100%;
+    }
+    
+    #shareReminderModal textarea {
+        font-size: 0.875rem;
+    }
+}
+
+/* FullCalendar responsive improvements */
+.fc {
+    width: 100% !important;
+    min-height: 500px !important;
+}
+
+.fc-view-harness {
+    min-height: 400px !important;
+}
+
+/* Ensure calendar doesn't get hidden on mobile */
+#calendar {
+    min-height: 500px !important;
+    background: white !important;
+    overflow: visible !important;
+}
+
+/* Fix mobile calendar white screen */
+@media (max-width: 768px) {
+    /* Force calendar container to be visible */
+    #calendar {
+        min-height: 400px !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+        background: white !important;
+        position: relative !important;
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Ensure FullCalendar components are visible */
+    .fc {
+        font-size: 0.8rem !important;
+        min-height: 400px !important;
+        background: white !important;
+        display: block !important;
+        visibility: visible !important;
+        width: 100% !important;
+    }
+    
+    .fc-view-harness {
+        overflow: visible !important;
+        min-height: 400px !important;
+        background: white !important;
+        display: block !important;
+        position: relative !important;
+    }
+    
+    .fc-view-harness-active {
+        height: auto !important;
+        min-height: 400px !important;
+        background: white !important;
+    }
+    
+    /* Force calendar table to be visible */
+    .fc-scrollgrid {
+        background: white !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    
+    .fc-scrollgrid-section > * {
+        background: white !important;
+    }
+    
+    .fc-daygrid {
+        background: white !important;
+    }
+    
+    .fc-daygrid-body {
+        background: white !important;
+    }
+    
+    /* Calendar header toolbar */
+    .fc-toolbar {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+        margin-bottom: 1rem !important;
+        padding: 0.5rem !important;
+        background: white !important;
+        border-bottom: 1px solid #dee2e6 !important;
+    }
+    
+    .fc-toolbar-chunk {
+        display: flex !important;
+        justify-content: center !important;
+        flex-wrap: wrap !important;
+        gap: 0.25rem !important;
+    }
+    
+    /* Calendar buttons */
+    .fc-button {
+        font-size: 0.75rem !important;
+        padding: 0.25rem 0.5rem !important;
+        margin: 0.1rem !important;
+        min-width: auto !important;
+        background: #007bff !important;
+        border-color: #007bff !important;
+        color: white !important;
+    }
+    
+    .fc-button:hover, .fc-button:focus {
+        background: #0056b3 !important;
+        border-color: #0056b3 !important;
+    }
+    
+    .fc-button-primary:disabled {
+        background: #6c757d !important;
+        border-color: #6c757d !important;
+    }
+    
+    /* Calendar day cells */
+    .fc-daygrid-day {
+        min-height: 3rem !important;
+        background: white !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    
+    .fc-daygrid-day-number {
+        padding: 0.25rem !important;
+        font-size: 0.8rem !important;
+        color: #495057 !important;
+    }
+    
+    /* Calendar events */
+    .fc-event {
+        font-size: 0.7rem !important;
+        padding: 0.1rem 0.25rem !important;
+        margin: 0.1rem 0 !important;
+        border-radius: 3px !important;
+    }
+    
+    .fc-event-title {
+        font-size: 0.7rem !important;
+    }
+    
+    /* Column headers */
+    .fc-col-header-cell {
+        padding: 0.25rem !important;
+        font-size: 0.8rem !important;
+        background: #f8f9fa !important;
+        border: 1px solid #dee2e6 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Force specific calendar elements to be visible */
+    .fc-theme-standard td, 
+    .fc-theme-standard th {
+        background: white !important;
+        border-color: #dee2e6 !important;
+    }
+    
+    /* Calendar card body adjustments */
+    .card-body:has(#calendar) {
+        padding: 0.5rem !important;
+        background: white !important;
+    }
+    
+    /* Prevent calendar from being hidden by other elements */
+    .card:has(#calendar) {
+        background: white !important;
+        z-index: 1 !important;
+        position: relative !important;
+    }
+    
+    /* Loading indicator adjustments */
+    #calendar-loading {
+        background: white !important;
+        min-height: 200px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-direction: column !important;
+    }
+}
+
+/* Additional mobile fixes for very small screens */
+@media (max-width: 576px) {
+    #calendar {
+        min-height: 350px !important;
+    }
+    
+    .fc {
+        min-height: 350px !important;
+        font-size: 0.75rem !important;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1rem !important;
+    }
+    
+    .fc-button {
+        font-size: 0.7rem !important;
+        padding: 0.2rem 0.4rem !important;
+    }
+    
+    .fc-daygrid-day {
+        min-height: 2.5rem !important;
+    }
+    
+    .fc-daygrid-day-number {
+        font-size: 0.75rem !important;
+    }
+}

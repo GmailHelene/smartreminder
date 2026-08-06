@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Ingen tilgang - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <div class="py-5">
+        <i class="fas fa-ban fa-5x text-danger mb-4"></i>
+        <h1 class="display-4">403</h1>
+        <h2 class="mb-4">Ingen tilgang</h2>
+        <p class="lead mb-4">Du har ikke tilgang til denne ressursen.</p>
+        <a href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('login') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-home"></i> Tilbake til forsiden
+        </a>
+    </div>
+</div>
+{% endblock %}

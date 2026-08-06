@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Logg inn - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <i class="fas fa-bell fa-3x text-primary mb-3"></i>
+                    <h2 class="h4 text-gray-900">SmartReminder Pro</h2>
+                    <p class="text-muted">Logg inn for å fortsette</p>
+                </div>
+
+                <form method="POST" class="needs-validation" novalidate>
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="form-floating mb-3">
+                        {{ form.username(class="form-control", placeholder="E-post", required=true, type="email", autocomplete="username") }}
+                        {{ form.username.label(class="form-label") }}
+                        <div class="invalid-feedback">
+                            Vennligst oppgi en gyldig e-postadresse.
+                        </div>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        {{ form.password(class="form-control", placeholder="Passord", required=true, autocomplete="current-password") }}
+                        {{ form.password.label(class="form-label") }}
+                        <div class="invalid-feedback">
+                            Passord er påkrevd.
+                        </div>
+                    </div>
+
+                    <div class="d-grid mb-3">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+
+                <div class="text-center">
+                    <a href="#" id="forgot-password-link" class="forgot-password-link">
+                        Glemt passord?
+                    </a>
+                </div>
+
+                <hr>
+                
+                <div class="text-center">
+                    <p class="small text-muted mb-2">Har du ikke konto?</p>
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#registerModal">
+                        <i class="fas fa-user-plus"></i> Registrer deg
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center mt-3">
+    <a href="{{ url_for('personvern') }}" class="text-muted small">Personvern</a>
+</div>
+
+<!-- Register Modal -->
+<div class="modal fade" id="registerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Opprett ny konto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('register') }}" id="registerForm" class="needs-validation" novalidate>
+                <div class="modal-body">
+                    <div class="form-floating mb-3">
+                        <input type="email" class="form-control" name="username" placeholder="E-post" required>
+                        <label>E-post</label>
+                        <div class="invalid-feedback">
+                            Vennligst oppgi en gyldig e-postadresse.
+                        </div>
+                    </div>
+                    <div class="form-floating mb-1">
+                        <input type="password" class="form-control" id="reg-password" name="password" placeholder="Passord" minlength="8" autocomplete="new-password" required>
+                        <label for="reg-password">Passord (min 8 tegn)</label>
+                        <div class="invalid-feedback">
+                            Passord må være minst 8 tegn.
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-3">Tips: bruk minst 8 tegn - gjerne en kort setning du husker.</p>
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="reg-password-confirm" placeholder="Bekreft passord" minlength="8" autocomplete="new-password" required>
+                        <label for="reg-password-confirm">Bekreft passord</label>
+                        <div class="invalid-feedback">
+                            Passordene må være like.
+                        </div>
+                    </div>
+                    <!-- Honeypot mot spam-boter (usynlig for ekte brukere) -->
+                    <div style="position:absolute; left:-9999px;" aria-hidden="true">
+                        <label for="website_hp">Ikke fyll ut dette feltet</label>
+                        <input type="text" name="website_hp" id="website_hp" tabindex="-1" autocomplete="off">
+                    </div>
+                    <!-- GDPR-samtykke -->
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="reg-consent" required>
+                        <label class="form-check-label small" for="reg-consent">
+                            Jeg har lest og godtar <a href="{{ url_for('personvern') }}" target="_blank" rel="noopener">personvernerklæringen</a>.
+                        </label>
+                    </div>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-primary">Opprett konto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Forgot Password Modal (proper Bootstrap modal — centered, with backdrop) -->
+<div class="modal fade" id="forgot-password-modal" tabindex="-1" aria-labelledby="forgot-password-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="forgot-password-title">Tilbakestill passord</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Lukk"></button>
+            </div>
+            <form id="forgot-password-form">
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Skriv inn e-posten din, så sender vi deg en lenke for å lage et nytt passord.</p>
+                    <div class="form-floating">
+                        <input type="email" class="form-control" id="reset-email" name="email" placeholder="E-post" required>
+                        <label for="reset-email">E-post adresse</label>
+                    </div>
+                    <div id="reset-message" role="alert" aria-live="polite" class="small mt-3" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-primary">Send tilbakestillingslenke</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// (Fjernet tvungen auto-focus - poppet opp mobiltastaturet ved innlasting.)
+
+// Åpne glemt-passord-modal
+document.getElementById('forgot-password-link').addEventListener('click', function(e) {
+    e.preventDefault();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('forgot-password-modal')).show();
+});
+
+// Glemt passord: sjekk response.ok, vis tydelig melding, IKKE auto-skjul (brukeren lukker selv)
+document.getElementById('forgot-password-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = this;
+    var email = document.getElementById('reset-email').value;
+    var messageDiv = document.getElementById('reset-message');
+    var submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sender...';
+
+    fetch('/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email })
+    })
+    .then(function(response) {
+        return response.json().then(function(data) {
+            if (!response.ok) { throw new Error(data.message || 'Serverfeil. Prøv igjen senere.'); }
+            return data;
+        });
+    })
+    .then(function(data) {
+        messageDiv.style.display = 'block';
+        messageDiv.className = 'small mt-3 text-success';
+        messageDiv.textContent = '✓ ' + data.message;
+        submitBtn.textContent = 'Sendt!';
+        // Ingen auto-lukking: la meldingen stå til brukeren lukker selv (WCAG/kognitiv støtte).
+    })
+    .catch(function(err) {
+        messageDiv.style.display = 'block';
+        messageDiv.className = 'small mt-3 text-danger';
+        messageDiv.textContent = err.message || 'Noe gikk galt. Sjekk nettforbindelsen og prøv igjen.';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send tilbakestillingslenke';
+    });
+});
+
+// Registrering: bekreft at passordene er like
+(function() {
+    var regForm = document.getElementById('registerForm');
+    if (!regForm) { return; }
+    var pw = document.getElementById('reg-password');
+    var cf = document.getElementById('reg-password-confirm');
+    var consent = document.getElementById('reg-consent');
+    if (cf) { cf.addEventListener('input', function() { cf.setCustomValidity(''); }); }
+    if (consent) { consent.addEventListener('change', function() { consent.setCustomValidity(''); }); }
+    regForm.addEventListener('submit', function(e) {
+        if (pw && cf && pw.value !== cf.value) {
+            e.preventDefault();
+            e.stopPropagation();
+            cf.setCustomValidity('Passordene må være like');
+            cf.reportValidity();
+            return;
+        }
+        if (consent && !consent.checked) {
+            e.preventDefault();
+            e.stopPropagation();
+            consent.setCustomValidity('Du må godta personvernerklæringen for å opprette konto');
+            consent.reportValidity();
+        }
+    });
+})();
+</script>
+{% endblock %}

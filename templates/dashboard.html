@@ -1,0 +1,1727 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ super() }}{% endblock %}
+
+{% block content %}
+<style>
+  /* Rekkefølge: kalender + påminnelser er hovedfokus; tavler nederst. */
+  .dashboard-wrap { display: flex; flex-direction: column; }
+  #calendarSection { order: 10; }
+  #remindersRow { order: 20; }
+  #boardsSection { order: 40; }
+  #accountSection { order: 50; }
+
+  .dashboard-wrap.simple-view #statsRow,
+  .dashboard-wrap.simple-view #dashboardActions,
+  .dashboard-wrap.simple-view #boardsSection,
+  .dashboard-wrap.simple-view #sharedSection,
+  .dashboard-wrap.simple-view #accountSection,
+  .dashboard-wrap.simple-view #calendarSection { display: none !important; }
+  .dashboard-wrap.simple-view #myRemindersCol { flex: 0 0 100%; max-width: 100%; }
+  .simple-hint { display: none; }
+  .dashboard-wrap.simple-view .simple-hint { display: block; }
+</style>
+<div class="dashboard-wrap {% if simple_view %}simple-view{% endif %}">
+
+<!-- Toolbar: fokusmodus + Enkel visning -->
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+    <form method="POST" action="{{ url_for('focus_modes') }}" class="mb-0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="input-group input-group-sm">
+            <label class="input-group-text" for="focusModeSelect">Fokusmodus</label>
+            <select class="form-select" id="focusModeSelect" name="focus_mode">
+                <option value="normal" {% if current_focus_mode == 'normal' %}selected{% endif %}>Normal</option>
+                <option value="silent" {% if current_focus_mode == 'silent' %}selected{% endif %}>Stillemodus</option>
+                <option value="adhd" {% if current_focus_mode == 'adhd' %}selected{% endif %}>ADHD-modus</option>
+                <option value="elderly" {% if current_focus_mode == 'elderly' %}selected{% endif %}>Modus for eldre</option>
+                <option value="work" {% if current_focus_mode == 'work' %}selected{% endif %}>Jobbmodus</option>
+                <option value="study" {% if current_focus_mode == 'study' %}selected{% endif %}>Studiemodus</option>
+            </select>
+            <button class="btn btn-outline-primary" type="submit">Bytt</button>
+        </div>
+    </form>
+    <form method="POST" action="{{ url_for('toggle_simple_view') }}" id="simpleViewForm" class="mb-0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" role="switch" id="simpleViewSwitch" {% if simple_view %}checked{% endif %} onchange="document.getElementById('simpleViewForm').submit()">
+            <label class="form-check-label" for="simpleViewSwitch"><i class="fas fa-eye"></i> Enkel visning</label>
+        </div>
+    </form>
+</div>
+
+<p class="simple-hint text-muted small mb-3"><i class="fas fa-info-circle"></i> Enkel visning er på - kun påminnelsene dine vises. Skru av bryteren for å se statistikk, tavler og kalender.</p>
+
+<!-- Stats Cards (kun ekte tall) -->
+<div id="statsRow" class="row mb-3">
+    <div class="col-6 col-md-3 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-bell fa-2x mb-2"></i>
+                <h3 id="my-count" data-count="my">{{ stats.total }}</h3>
+                <small>Mine påminnelser</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 mb-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x mb-2"></i>
+                <h3 id="completed-count">{{ stats.completed }}</h3>
+                <small>Fullført</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 mb-3">
+        <div class="card bg-info text-white h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-share fa-2x mb-2"></i>
+                <h3 id="shared-count" data-count="shared">{{ stats.shared_count }}</h3>
+                <small>Delt med meg</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 mb-3">
+        <div class="card bg-secondary text-white h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-percent fa-2x mb-2"></i>
+                <h3>{{ "%.0f"|format(stats.completion_rate) }}%</h3>
+                <small>Fullføringsrate</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Handlinger (knapper - ikke forkledd som statistikk) -->
+<div id="dashboardActions" class="mb-4 d-flex flex-wrap gap-2">
+    <a href="{{ url_for('noteboards') }}" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-chalkboard"></i> Mine tavler{% if boards_count %} ({{ boards_count }}){% endif %}
+    </a>
+    <button type="button" class="btn btn-outline-primary btn-sm" onclick="requestPushPermission()">
+        <i class="fas fa-bell"></i> Aktiver varsler
+    </button>
+    {% if current_user.email == 'helene721@gmail.com' %}
+    <a href="{{ url_for('email_settings') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-envelope"></i> E-post innstillinger
+    </a>
+    <button type="button" class="btn btn-outline-info btn-sm" onclick="testNotificationSound()">
+        <i class="fas fa-volume-up"></i> Test varsellyder
+    </button>
+    {% endif %}
+</div>
+
+<!-- Mine Tavler Section -->
+<div id="boardsSection" class="card mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+    <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0 text-white">
+            <i class="fas fa-chalkboard-teacher"></i> Mine tavler
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <a href="{{ url_for('noteboards') }}" class="text-decoration-none">
+                    <div class="card bg-white text-dark hover-shadow h-100" style="transition: all 0.3s ease;">
+                        <div class="card-body text-center d-flex flex-column justify-content-center">
+                            <i class="fas fa-clipboard-list fa-3x text-primary mb-3"></i>
+                            <h6 class="card-title mb-2">Private tavler</h6>
+                            <p class="card-text text-muted small mb-0">
+                                <span class="badge bg-primary">{{ boards_count|default(0) }}</span> tavler tilgjengelig
+                            </p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 mb-3">
+                <a href="{{ url_for('noteboards') }}" class="text-decoration-none">
+                    <div class="card bg-white text-dark hover-shadow h-100" style="transition: all 0.3s ease;">
+                        <div class="card-body text-center d-flex flex-column justify-content-center">
+                            <i class="fas fa-users fa-3x text-success mb-3"></i>
+                            <h6 class="card-title mb-2">Delte tavler</h6>
+                            <p class="card-text text-muted small mb-0">
+                                <span class="badge bg-success">{{ shared_boards_count|default(0) }}</span> delte tavler
+                            </p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 text-center">
+                <a href="{{ url_for('noteboards') }}" class="btn btn-light btn-sm me-2">
+                    <i class="fas fa-plus"></i> Opprett ny tavle
+                </a>
+                <button class="btn btn-outline-light btn-sm me-2" onclick="showJoinBoardModal()">
+                    <i class="fas fa-sign-in-alt"></i> Bli med på tavle
+                </button>
+                <button id="enablePushBtn" class="btn btn-outline-light btn-sm me-2" onclick="requestPushPermission()" style="display: none;" title="Valgfritt - for push-notifikasjoner til mobilen">
+                    <i class="fas fa-bell"></i> Aktiver varsler (valgfritt)
+                </button>
+                <button id="testPushBtn" class="btn btn-outline-warning btn-sm me-2" onclick="testPushNotification()" style="display: none;" title="Test push-notifikasjoner">
+                    <i class="fas fa-bell-ringing"></i> Test varsler
+                </button>
+                <button id="installBtn" class="btn btn-outline-light btn-sm" onclick="installApp()" style="display: none;">
+                    <i class="fas fa-download"></i> Installer app
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Board Join Modal -->
+<div class="modal fade" id="quickJoinBoardModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-sign-in-alt"></i> Bli med på tavle
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('join_board') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-floating mb-3">
+                        <input type="text" name="access_code" class="form-control" 
+                               placeholder="TAVLE123" required style="text-transform: uppercase;">
+                        <label>Tilgangskode</label>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Skriv inn tilgangskoden du mottok for å bli med på en delt tavle.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i> Bli med
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Ny påminnelse (kollapsbar - dashbordet leder med påminnelsene dine) -->
+<div class="mb-3">
+    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newReminderCollapse" aria-expanded="false" aria-controls="newReminderCollapse">
+        <i class="fas fa-plus" aria-hidden="true"></i> Ny påminnelse
+    </button>
+</div>
+<div class="collapse" id="newReminderCollapse">
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-plus"></i> Ny påminnelse</h5>
+    </div>
+    <div class="card-body" style="padding-top: 0;">
+        <!-- Notification info -->
+        <div class="alert alert-light border-0 mb-3" style="font-size: 0.9em; margin-top: 1rem;">
+            <i class="fas fa-info-circle text-primary"></i>
+            <strong>Varslinger:</strong> Push-notifikasjoner er valgfritt og kun for påminnelser til mobilen. Appen fungerer perfekt uten dem også!
+        <div class="card-body">
+        <form method="POST" action="{{ url_for('add_reminder') }}" class="needs-validation" novalidate>
+            {{ form.hidden_tag() }}
+            
+            <div class="row">
+                <div class="col-lg-6 col-md-12">
+                    <div class="form-floating mb-3">
+                        {{ form.title(class="form-control", placeholder="Tittel", required=true) }}
+                        {{ form.title.label(class="form-label") }}
+                    </div>
+                </div>
+                <div class="col-lg-6 col-md-12">
+                    <div class="form-floating mb-3">
+                        {{ form.category(class="form-select") }}
+                        {{ form.category.label(class="form-label") }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-floating mb-3">
+                {{ form.description(class="form-control", placeholder="Beskrivelse", rows="3") }}
+                {{ form.description.label(class="form-label") }}
+            </div>
+
+            <div class="row">
+                <div class="col-lg-4 col-md-6 col-sm-12">
+                    <div class="form-floating mb-3">
+                        {{ form.date(class="form-control", required=true) }}
+                        {{ form.date.label(class="form-label") }}
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 col-sm-12">
+                    <div class="form-floating mb-3">
+                        {{ form.time(class="form-control", required=true) }}
+                        {{ form.time.label(class="form-label") }}
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-12 col-sm-12">
+                    <div class="form-floating mb-3">
+                        {{ form.priority(class="form-select") }}
+                        {{ form.priority.label(class="form-label") }}
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-12 col-sm-12">
+                    <div class="form-floating mb-3">
+                        <select class="form-select" name="sound" id="soundSelect" onchange="previewSound(this.value)">
+                            <option value="pristine.mp3">Standard</option>
+                            <option value="ding.mp3">Ding</option>
+                            <option value="chime.mp3">Chime</option>
+                            <option value="alert.mp3">Alert</option>
+                        </select>
+                        <label for="soundSelect">Varsellyd</label>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="previewSound(document.getElementById('soundSelect').value)">
+                            <i class="fas fa-volume-up"></i> Test lyd
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {% if available_users %}
+            <div class="mb-3">
+                <label class="form-label">Del med:</label>
+                <div class="row">
+                    {% for user in available_users %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="share_with" value="{{ user }}" id="user_{{ loop.index }}">
+                            <label class="form-check-label" for="user_{{ loop.index }}">
+                                {{ user }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="d-grid">
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+    </div>
+</div>
+</div><!-- /newReminderCollapse -->
+
+<!-- My Reminders -->
+<div id="remindersRow" class="row">
+    <div id="myRemindersCol" class="col-lg-6 col-md-12 dashboard-col">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-bell"></i> Mine påminnelser</h5>
+                <span class="badge bg-primary">{{ my_reminders|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if my_reminders %}
+                    {% for reminder in my_reminders %}
+                    <div class="reminder-item card mb-3 priority-{{ reminder.priority.lower() }}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title">{{ reminder.title }}</h6>
+                                    {% if reminder.description %}
+                                    <p class="card-text text-muted small">{{ reminder.description }}</p>
+                                    {% endif %}
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <span class="badge bg-primary">{{ reminder.datetime | format_datetime }}</span>
+                                        <span class="badge category-badge bg-secondary">{{ reminder.category }}</span>
+                                        <span class="badge bg-{{ 'danger' if reminder.priority == 'Høy' else 'warning' if reminder.priority == 'Medium' else 'success' }}">
+                                            {{ reminder.priority }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-label="Handlinger for påminnelse" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-v" aria-hidden="true"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <form method="POST" action="{{ url_for('complete_reminder', reminder_id=reminder.id) }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dropdown-item">
+                                                    <i class="fas fa-check text-success"></i> Fullfør
+                                                </button>
+                                            </form>
+                                        </li>
+                                        <li><button class="dropdown-item" onclick="shareReminder('{{ reminder.id }}', '{{ reminder.title }}')">
+                                            <i class="fas fa-share text-info"></i> Del via e-post
+                                        </button></li>
+                                        <li>
+                                            <form method="POST" action="{{ url_for('delete_reminder', reminder_id=reminder.id) }}"
+                                                  onsubmit="return confirm('Er du sikker på at du vil slette denne påminnelsen?')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dropdown-item text-danger">
+                                                    <i class="fas fa-trash text-danger"></i> Slett
+                                                </button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-bell-slash fa-3x mb-3"></i>
+                        <p>Ingen påminnelser ennå</p>
+                        <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#newReminderCollapse">
+                            <i class="fas fa-plus" aria-hidden="true"></i> Lag din første påminnelse
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared Reminders -->
+    <div id="sharedSection" class="col-lg-6 col-md-12 dashboard-col">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-share"></i> Delt med meg</h5>
+                <span class="badge bg-info">{{ shared_reminders|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if shared_reminders %}
+                    {% for reminder in shared_reminders %}
+                    <div class="reminder-item card mb-3 priority-{{ reminder.priority.lower() }}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title">
+                                        {{ reminder.title }}
+                                        <small class="text-muted">av {{ reminder.shared_by }}</small>
+                                    </h6>
+                                    {% if reminder.description %}
+                                    <p class="card-text text-muted small">{{ reminder.description }}</p>
+                                    {% endif %}
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <span class="badge bg-primary">{{ reminder.datetime | format_datetime }}</span>
+                                        <span class="badge category-badge bg-secondary">{{ reminder.category }}</span>
+                                        <span class="badge bg-{{ 'danger' if reminder.priority == 'Høy' else 'warning' if reminder.priority == 'Medium' else 'success' }}">
+                                            {{ reminder.priority }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <form method="POST" action="{{ url_for('complete_reminder', reminder_id=reminder.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-success" aria-label="Fullfør påminnelse" title="Fullfør">
+                                            <i class="fas fa-check" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-share-alt fa-3x mb-3"></i>
+                        <p>Ingen delte påminnelser</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Calendar View -->
+<div id="calendarSection" class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Kalendervisning</h5>
+                <div class="btn-group" role="group">
+                    <input type="radio" class="btn-check" name="calendarView" id="monthView" autocomplete="off" checked>
+                    <label class="btn btn-outline-primary btn-sm" for="monthView">Måned</label>
+                    
+                    <input type="radio" class="btn-check" name="calendarView" id="weekView" autocomplete="off">
+                    <label class="btn btn-outline-primary btn-sm" for="weekView">Uke</label>
+                    
+                    <input type="radio" class="btn-check" name="calendarView" id="dayView" autocomplete="off">
+                    <label class="btn btn-outline-primary btn-sm" for="dayView">Dag</label>
+                </div>
+            </div>
+            <div class="card-body p-1 p-md-3">
+                <!-- Removed loading indicator per user request -->
+                
+                <!-- Mobile calendar fallback -->
+                <div id="calendar-fallback" class="text-center p-4" style="display: none; min-height: 400px; background: white; border: 1px solid #dee2e6; border-radius: 0.375rem;">
+                    <div class="mt-5">
+                        <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Kalender utilgjengelig</h5>
+                        <p class="text-muted small">Kalenderen kunne ikke lastes. Prøv å oppdatere siden.</p>
+                        <button onclick="location.reload()" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-refresh"></i> Oppdater side
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="calendar" style="min-height: 400px; background: white;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share Reminder Modal -->
+<div class="modal fade" id="shareReminderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-share"></i> Del påminnelse</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('share_reminder') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="reminder_id" id="shareReminderIdInput">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Påminnelse:</label>
+                        <p class="text-muted" id="shareReminderTitle"></p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="emailAddresses" class="form-label fw-bold">E-post adresser:</label>
+                        <textarea class="form-control" name="email_addresses" id="emailAddresses" 
+                                  rows="3" placeholder="Skriv inn e-post adresser separert med komma eller mellomrom"
+                                  required></textarea>
+                        <div class="form-text">Eksempel: person1@example.com, person2@example.com</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="personalMessage" class="form-label">Personlig melding (valgfritt):</label>
+                        <textarea class="form-control" name="personal_message" id="personalMessage" 
+                                  rows="3" placeholder="Legg til en personlig melding..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Send påminnelse
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Reminder Modal -->
+<div class="modal fade" id="quickReminderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">⚡ Hurtig påminnelse</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="quickReminderForm" action="/add_reminder" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" id="quickDate" name="date">
+                    <input type="hidden" id="quickTime" name="time">
+                    
+                    <div class="mb-3">
+                        <label for="quickTitle" class="form-label">Tittel</label>
+                        <input type="text" class="form-control" id="quickTitle" name="title" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="quickDescription" class="form-label">Beskrivelse (valgfritt)</label>
+                        <textarea class="form-control" id="quickDescription" name="description" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="quickCategory" class="form-label">Kategori</label>
+                            <select class="form-select" id="quickCategory" name="category">
+                                <option value="Helse">⚕️ Helse</option>
+                                <option value="Familie">👨‍👩‍👧‍👦 Familie</option>
+                                <option value="Økonomi">💰 Økonomi</option>
+                                <option value="Utdanning">📚 Utdanning</option>
+                                <option value="Annet" selected>📎 Annet</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="quickPriority" class="form-label">Prioritet</label>
+                            <select class="form-select" id="quickPriority" name="priority">
+                                <option value="Lav">🟢 Lav</option>
+                                <option value="Medium" selected>🟡 Medium</option>
+                                <option value="Høy">🔴 Høy</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            📅 <span id="selectedDateDisplay"></span>
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Opprett påminnelse
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Event Details Modal -->
+<div class="modal fade" id="eventDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventDetailsTitle">📋 Påminnelse detaljer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="eventDetailsBody">
+                <!-- Event details will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Lukk</button>
+                <button type="button" class="btn btn-primary" id="shareEventBtn">
+                    <i class="fas fa-share"></i> Del via e-post
+                </button>
+                <button type="button" class="btn btn-success" id="completeEventBtn">
+                    <i class="fas fa-check"></i> Fullfør
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Context Menu -->
+<div id="eventContextMenu" class="dropdown-menu" style="display: none; position: absolute; z-index: 1055;">
+    <a class="dropdown-item" href="#" id="shareEventContext">
+        <i class="fas fa-share"></i> Del via e-post
+    </a>
+    <a class="dropdown-item" href="#" id="editEventContext">
+        <i class="fas fa-edit"></i> Rediger
+    </a>
+    <a class="dropdown-item" href="#" id="completeEventContext">
+        <i class="fas fa-check"></i> Fullfør
+    </a>
+    <div class="dropdown-divider"></div>
+    <a class="dropdown-item text-danger" href="#" id="deleteEventContext">
+        <i class="fas fa-trash"></i> Slett
+    </a>
+</div>
+
+{% if current_focus_mode == 'driving_school' %}
+<!-- KJØRESKOLEMODUS WIDGETS -->
+<div class="card mb-4">
+  <div class="card-header bg-success text-white">
+    <i class="fas fa-car"></i> Kjøreskole: Instruktørstatus
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('set_instructor_status') }}" class="row g-2 align-items-center">
+      <div class="col-auto">
+        <label for="statusSelect" class="form-label mb-0">Status:</label>
+      </div>
+      <div class="col-auto">
+        <select class="form-select" id="statusSelect" name="status">
+          <option value="ledig">Ledig</option>
+          <option value="opptatt">Opptatt</option>
+          <option value="på_vei">På vei</option>
+          <option value="pause">Pause</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-outline-success" type="submit">Oppdater</button>
+      </div>
+    </form>
+    <div class="mt-3">
+      <strong>Alle instruktører:</strong>
+      <ul class="list-unstyled mb-0">
+        {% for instr in instructors %}
+        <li>{{ instr.name }}: <span class="badge bg-info">{{ instr.status }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <i class="fas fa-bolt"></i> Hurtigbeskjed
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('send_quick_message') }}" class="row g-2 align-items-center">
+      <div class="col-auto">
+        <select class="form-select" name="template">
+          <option value="Husk å fylle drivstoff">Husk å fylle drivstoff</option>
+          <option value="Ta med lærebok">Ta med lærebok</option>
+          <option value="Ring kontoret etter timen">Ring kontoret etter timen</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-outline-primary" type="submit">Send</button>
+      </div>
+    </form>
+    <div class="mt-2">
+      <strong>Raske svar:</strong>
+      <button class="btn btn-sm btn-outline-secondary me-1" onclick="sendQuickReply('OK')">OK</button>
+      <button class="btn btn-sm btn-outline-secondary me-1" onclick="sendQuickReply('På vei')">På vei</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="sendQuickReply('Trenger mer tid')">Trenger mer tid</button>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header bg-warning text-dark">
+    <i class="fas fa-clock"></i> Blir forsinket
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('notify_delay') }}" class="row g-2 align-items-center">
+      <div class="col-auto">
+        <label for="delayMinutes" class="form-label mb-0">Antall minutter:</label>
+      </div>
+      <div class="col-auto">
+        <input type="number" min="1" max="60" class="form-control" id="delayMinutes" name="minutes" value="5">
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-outline-warning" type="submit">Send forsinkelse</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header bg-info text-white">
+    <i class="fas fa-book"></i> Kjøretime-logg
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('log_lesson') }}" class="row g-2 align-items-center">
+      <div class="col-auto">
+        <label for="lessonNote" class="form-label mb-0">Notat:</label>
+      </div>
+      <div class="col-auto">
+        <input type="text" class="form-control" id="lessonNote" name="note" placeholder="Startet time, Avsluttet, Avvik...">
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-outline-info" type="submit">Logg</button>
+      </div>
+    </form>
+    <div class="mt-2">
+      <strong>Siste logg:</strong>
+      <ul class="list-unstyled mb-0">
+        {% for entry in lesson_log %}
+        <li>{{ entry.timestamp }}: {{ entry.note }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+<!-- SLUTT KJØRESKOLEMODUS WIDGETS -->
+{% endif %}
+
+<!-- Konto / personvern -->
+<div id="accountSection" class="mt-5 pt-3 border-top text-center">
+    <a href="{{ url_for('personvern') }}" class="text-muted small me-3"><i class="fas fa-lock"></i> Personvern</a>
+    <a href="{{ url_for('export_my_data') }}" class="text-muted small me-3"><i class="fas fa-download"></i> Last ned mine data</a>
+    <form method="POST" action="{{ url_for('delete_account') }}" class="d-inline"
+          onsubmit="return confirm('Er du helt sikker? Dette sletter kontoen din og ALLE påminnelsene og tavlene dine permanent.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-link btn-sm text-danger p-0"><i class="fas fa-trash"></i> Slett konto</button>
+    </form>
+</div>
+</div><!-- /dashboard-wrap -->
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+<script>
+// CSRF Token refresh - fix for token expiration issues
+document.addEventListener('DOMContentLoaded', function() {
+    // Make sure all forms have a valid CSRF token
+    const refreshCSRFTokens = function() {
+        // Fetch a new CSRF token via a small hidden iframe
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = '/dashboard';
+        iframe.onload = function() {
+            try {
+                const csrfToken = iframe.contentDocument.querySelector('input[name="csrf_token"]').value;
+                if (csrfToken) {
+                    // Update all CSRF tokens on the page
+                    document.querySelectorAll('input[name="csrf_token"]').forEach(input => {
+                        input.value = csrfToken;
+                    });
+                    console.log('CSRF tokens refreshed');
+                }
+                // Remove iframe after use
+                document.body.removeChild(iframe);
+            } catch (e) {
+                console.error('Failed to refresh CSRF token:', e);
+            }
+        };
+        document.body.appendChild(iframe);
+    };
+    
+    // Refresh tokens immediately on page load
+    refreshCSRFTokens();
+    
+    // Refresh tokens every 5 minutes to avoid expiration
+    setInterval(refreshCSRFTokens, 5 * 60 * 1000);
+    
+    // Also refresh if the user becomes active after inactivity
+    let inactiveTime = 0;
+    const checkActivity = setInterval(function() {
+        inactiveTime += 1;
+        if (inactiveTime > 30) { // 30 minutes of inactivity
+            refreshCSRFTokens();
+            inactiveTime = 0;
+        }
+    }, 60 * 1000); // Check every minute
+    
+    // Reset inactive timer on user activity
+    const resetInactiveTimer = function() {
+        inactiveTime = 0;
+    };
+    
+    // Listen for user activity
+    ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(event => {
+        document.addEventListener(event, resetInactiveTimer, true);
+    });
+});
+</script>
+
+<!-- FullCalendar CSS & JS (stable version) -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" 
+      crossorigin="anonymous" 
+      onerror="console.error('Failed to load FullCalendar CSS'); this.remove();">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js" 
+        crossorigin="anonymous" 
+        onerror="console.error('Failed to load FullCalendar JS'); this.remove();"></script>
+
+<script>
+// Optimized calendar initialization - prevent hanging
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🎯 Starting optimized calendar initialization...');
+    
+    // Only initialize once
+    if (window.calendarInitialized) {
+        console.log('⚠️ Calendar already initialized, skipping...');
+        return;
+    }
+    
+    const calendarEl = document.getElementById('calendar');
+    const loadingEl = document.getElementById('calendar-loading');
+    const fallbackEl = document.getElementById('calendar-fallback');
+    
+    if (!calendarEl) {
+        console.error('❌ Calendar element not found');
+        return;
+    }
+    
+    // Mark as initialized to prevent multiple initializations
+    window.calendarInitialized = true;
+    
+    // Show loading briefly
+    if (loadingEl) {
+        loadingEl.style.display = 'block';
+        // Auto-hide after 2 seconds
+        setTimeout(() => {
+            loadingEl.style.display = 'none';
+        }, 2000);
+    }
+    
+    // Initialize with minimal configuration to prevent hanging
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        height: window.innerWidth < 768 ? 400 : 600,
+        
+        // Direct URL loading - simpler and more reliable
+        events: '/api/calendar-events',
+        
+        // Minimal event handlers to prevent hanging
+        eventSources: [{
+            url: '/api/calendar-events',
+            failure: function() {
+                console.error('Failed to load calendar events');
+                if (fallbackEl) {
+                    fallbackEl.innerHTML = `
+                        <div class="text-center p-4">
+                            <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                            <h5>Kunne ikke laste kalender</h5>
+                            <p class="text-muted">Last siden på nytt for å prøve igjen.</p>
+                            <button onclick="location.reload()" class="btn btn-outline-primary">
+                                <i class="fas fa-refresh"></i> Last på nytt
+                            </button>
+                        </div>
+                    `;
+                    fallbackEl.style.display = 'block';
+                }
+            }
+        }],
+        
+        headerToolbar: {
+            left: window.innerWidth < 768 ? 'prev,next' : 'prev,next today',
+            center: 'title',
+            right: window.innerWidth < 768 ? 'dayGridMonth' : 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        
+        // Basic interactions
+        dateClick: function(info) {
+            console.log('📅 Date clicked:', info.dateStr);
+            showQuickReminderModal(info.date, null, true);
+        },
+        
+        eventClick: function(info) {
+            console.log('📋 Event clicked:', info.event.title);
+            showEventDetailsModal(info.event);
+        }
+    });
+    
+    // Render with error handling
+    try {
+        calendar.render();
+        window.calendar = calendar;
+        console.log('✅ Calendar rendered successfully');
+    } catch (error) {
+        console.error('❌ Calendar render error:', error);
+        if (fallbackEl) {
+            fallbackEl.innerHTML = `
+                <div class="text-center p-4">
+                    <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                    <h5>Kalenderfeil</h5>
+                    <p class="text-muted">Kunne ikke vise kalenderen.</p>
+                </div>
+            `;
+            fallbackEl.style.display = 'block';
+        }
+    }
+});
+
+// ====== KALENDER HJELPEFUNKSJONER ======
+// Disse funksjonene sikrer kompatibilitet med systemsjekken
+
+// Hjelpefunksjon for å laste kalenderevents (wrapper for eksisterende logikk)
+function loadCalendarEvents() {
+    console.log('📅 loadCalendarEvents: Bruker FullCalendar sin innebygde event loading');
+    if (window.calendar) {
+        window.calendar.refetchEvents();
+    }
+}
+
+// Hjelpefunksjon for autentiseringssjekk
+function checkUserAuthentication() {
+    console.log('🔐 checkUserAuthentication: Sjekker brukerautentisering');
+    // Bruker eksisterende CSRF-token logikk som indikator på innlogging
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    return csrfToken && csrfToken.getAttribute('content');
+}
+
+// Hjelpefunksjon for kalenderinitialisering (wrapper for eksisterende logikk)
+function initializeCalendar() {
+    console.log('🎯 initializeCalendar: Kalender allerede initialisert via DOMContentLoaded');
+    // Kalenderen er allerede initialisert i DOMContentLoaded event listeneren over
+    if (window.calendar) {
+        console.log('✅ Kalender er allerede aktiv');
+        return window.calendar;
+    } else {
+        console.log('⚠️ Kalender ikke funnet, prøver å re-initialisere...');
+        // Trigger re-initialisering hvis nødvendig
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+    }
+}
+
+// ====== SLUTT PÅ KALENDER HJELPEFUNKSJONER ======
+
+// Show join board modal
+function showJoinBoardModal() {
+    const modal = new bootstrap.Modal(document.getElementById('quickJoinBoardModal'));
+    modal.show();
+    
+    // Focus on access code input
+    setTimeout(() => {
+        document.querySelector('#quickJoinBoardModal input[name="access_code"]').focus();
+    }, 500);
+}
+
+// Auto-uppercase access code input
+document.addEventListener('DOMContentLoaded', function() {
+    const accessCodeInput = document.querySelector('#quickJoinBoardModal input[name="access_code"]');
+    if (accessCodeInput) {
+        accessCodeInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    }
+});
+
+// Share reminder function
+function shareReminder(reminderId, reminderTitle) {
+    document.getElementById('shareReminderIdInput').value = reminderId;
+    document.getElementById('shareReminderTitle').textContent = reminderTitle;
+    
+    var modal = new bootstrap.Modal(document.getElementById('shareReminderModal'));
+    modal.show();
+}
+
+// Form validation
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+
+// Update reminder count
+function updateReminderCount() {
+    fetch('/api/reminder-count')
+        .then(response => response.json())
+        .then(data => {
+            if (data.my_count !== undefined) {
+                const myCountEl = document.querySelector('[data-count="my"]');
+                if (myCountEl) myCountEl.textContent = data.my_count;
+            }
+            if (data.shared_count !== undefined) {
+                const sharedCountEl = document.querySelector('[data-count="shared"]');
+                if (sharedCountEl) sharedCountEl.textContent = data.shared_count;
+            }
+            if (data.total_count !== undefined) {
+                const totalCountEl = document.querySelector('[data-count="total"]');
+                if (totalCountEl) totalCountEl.textContent = data.total_count;
+            }
+        })
+        .catch(error => console.log('Error updating reminder count:', error));
+}
+
+// Auto-refresh reminder count every 5 minutes
+setInterval(updateReminderCount, 300000);
+
+// Quick reminder modal functions
+function showQuickReminderModal(startDate, endDate, allDay) {
+    const modal = new bootstrap.Modal(document.getElementById('quickReminderModal'));
+    
+    // Ensure we have valid dates
+    if (!startDate) {
+        console.error('showQuickReminderModal called without startDate');
+        return;
+    }
+    
+    // Set date and time values
+    const date = new Date(startDate);
+    if (isNaN(date.getTime())) {
+        console.error('Invalid date provided to showQuickReminderModal:', startDate);
+        return;
+    }
+    
+    const dateStr = date.toISOString().split('T')[0];
+    const timeStr = allDay ? '09:00' : date.toTimeString().slice(0, 5);
+    
+    document.getElementById('quickDate').value = dateStr;
+    document.getElementById('quickTime').value = timeStr;
+    
+    // Safe date formatting
+    try {
+        document.getElementById('selectedDateDisplay').textContent = 
+            date.toLocaleDateString('nb-NO', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            }) + (allDay ? '' : ` kl. ${timeStr}`);
+    } catch (e) {
+        console.error('Error formatting date:', e);
+        document.getElementById('selectedDateDisplay').textContent = `${dateStr} ${timeStr}`;
+    }
+    
+    // Clear form
+    document.getElementById('quickTitle').value = '';
+    document.getElementById('quickDescription').value = '';
+    document.getElementById('quickCategory').value = 'Annet';
+    document.getElementById('quickPriority').value = 'Medium';
+    
+    modal.show();
+    
+    // Focus on title field
+    setTimeout(() => {
+        document.getElementById('quickTitle').focus();
+    }, 500);
+}
+
+// Event details modal
+function showEventDetailsModal(event) {
+    const modal = new bootstrap.Modal(document.getElementById('eventDetailsModal'));
+    const props = event.extendedProps;
+    
+    document.getElementById('eventDetailsTitle').textContent = event.title;
+    
+    let detailsHtml = `
+        <div class="row">
+            <div class="col-12 mb-3">
+                <h6>${event.title}</h6>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <strong>📅 Dato og tid:</strong><br>
+                <span class="text-muted">${event.start.toLocaleString('nb-NO')}</span>
+            </div>
+            <div class="col-md-6">
+                <strong>🏷️ Kategori:</strong><br>
+                <span class="badge bg-secondary">${props.category}</span>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <strong>⚡ Prioritet:</strong><br>
+                <span class="badge bg-${props.priority === 'Høy' ? 'danger' : props.priority === 'Medium' ? 'warning' : 'success'}">${props.priority}</span>
+            </div>
+            ${props.sharedBy ? `<div class="col-md-6"><strong>👤 Delt av:</strong><br><span class="text-muted">${props.sharedBy}</span></div>` : ''}
+        </div>
+    `;
+    
+    if (props.description) {
+        detailsHtml += `
+            <div class="mb-3">
+                <strong>📝 Beskrivelse:</strong><br>
+                <div class="text-muted">${props.description}</div>
+            </div>
+        `;
+    }
+    
+    document.getElementById('eventDetailsBody').innerHTML = detailsHtml;
+    
+    // Set up action buttons
+    const shareBtn = document.getElementById('shareEventBtn');
+    const completeBtn = document.getElementById('completeEventBtn');
+    
+    shareBtn.onclick = () => {
+        modal.hide();
+        shareEventViaEmail(event);
+    };
+    
+    if (props.type === 'my') {
+        completeBtn.style.display = 'block';
+        completeBtn.onclick = () => {
+            completeReminder(event.id);
+            modal.hide();
+        };
+    } else {
+        completeBtn.style.display = 'none';
+    }
+    
+    modal.show();
+}
+
+// Context menu
+let currentContextEvent = null;
+
+function showEventContextMenu(e, event) {
+    const menu = document.getElementById('eventContextMenu');
+    currentContextEvent = event;
+    
+    menu.style.left = e.pageX + 'px';
+    menu.style.top = e.pageY + 'px';
+    menu.style.display = 'block';
+    
+    // Hide on click outside
+    setTimeout(() => {
+        document.addEventListener('click', hideContextMenu, { once: true });
+    }, 100);
+}
+
+function hideContextMenu() {
+    document.getElementById('eventContextMenu').style.display = 'none';
+    currentContextEvent = null;
+}
+
+// Context menu actions
+document.getElementById('shareEventContext').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (currentContextEvent) {
+        shareEventViaEmail(currentContextEvent);
+        hideContextMenu();
+    }
+});
+
+document.getElementById('completeEventContext').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (currentContextEvent && currentContextEvent.extendedProps.type === 'my') {
+        completeReminder(currentContextEvent.id);
+        hideContextMenu();
+    }
+});
+
+// Share event via email
+function shareEventViaEmail(event) {
+    document.getElementById('shareReminderIdInput').value = event.id.replace('shared_', '');
+    document.getElementById('shareReminderTitle').textContent = event.title;
+    document.getElementById('emailAddresses').value = '';
+    document.getElementById('personalMessage').value = '';
+    
+    const shareModal = new bootstrap.Modal(document.getElementById('shareReminderModal'));
+    shareModal.show();
+}
+
+// Override the share form submission to use calendar API
+document.getElementById('shareReminderModal').querySelector('form').addEventListener('submit', function(e) {
+    if (currentContextEvent) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const data = {
+            reminder_id: formData.get('reminder_id'),
+            email_addresses: formData.get('email_addresses'),
+            personal_message: formData.get('personal_message')
+        };
+        
+        fetch('/api/share-calendar-event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': formData.get('csrf_token')
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToastNotification('📧 ' + (data.message || 'Kalenderinvitasjon sendt!'), 'success');
+                bootstrap.Modal.getInstance(document.getElementById('shareReminderModal')).hide();
+            } else {
+                showToastNotification('❌ ' + (data.error || 'Kunne ikke sende invitasjon'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error sharing calendar event:', error);
+            showToastNotification('❌ Feil ved sending av invitasjon', 'error');
+        });
+    }
+});
+
+// Update reminder date/time via drag & drop
+function updateReminderDateTime(eventId, newStart, newEnd) {
+    const cleanId = eventId.replace('shared_', '');
+    const newDate = newStart.toISOString().split('T')[0];
+    const newTime = newStart.toTimeString().slice(0, 5);
+    
+    // Get CSRF token from any form on the page
+    const csrfToken = document.querySelector('input[name=csrf_token]').value;
+    
+    fetch('/api/update-reminder-datetime', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            reminder_id: cleanId,
+            date: newDate,
+            time: newTime
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showToastNotification('📅 Påminnelse oppdatert!', 'success');
+        } else {
+            showToastNotification('❌ Kunne ikke oppdatere påminnelse: ' + (data.error || 'Ukjent feil'), 'error');
+            // Revert calendar if needed
+            if (window.calendar) {
+                window.calendar.refetchEvents();
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error updating reminder:', error);
+        showToastNotification('❌ Feil ved oppdatering: ' + error.message, 'error');
+        if (window.calendar) {
+            window.calendar.refetchEvents();
+        }
+    });
+}
+
+// Complete reminder function
+function completeReminder(reminderId) {
+    const cleanId = reminderId.replace('shared_', '');
+    
+    fetch(`/complete_reminder/${cleanId}`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+    })
+    .then(response => {
+        if (response.ok) {
+            showToastNotification('✅ Påminnelse fullført!', 'success');
+            if (window.calendar) {
+                window.calendar.refetchEvents();
+            }
+            // Update reminder count instead of reloading
+            updateReminderCount();
+        } else {
+            showToastNotification('❌ Kunne ikke fullføre påminnelse', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error completing reminder:', error);
+        showToastNotification('❌ Feil ved fullføring', 'error');
+    });
+}
+
+// Quick reminder form submission handler
+function handleQuickReminderSubmit(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Validate required fields
+    if (!data.title || !data.date || !data.time) {
+        showToastNotification('❌ Tittel, dato og tid er påkrevd', 'error');
+        return false;
+    }
+    
+    // Extra validation for data integrity
+    if (data.title.length > 200) {
+        showToastNotification('❌ Tittel er for lang (maks 200 tegn)', 'error');
+        return false;
+    }
+    
+    // Get CSRF token specifically from this form
+    const csrfToken = form.querySelector('[name=csrf_token]').value;
+    if (!csrfToken) {
+        showToastNotification('❌ Sikkerhetsfeil - prøv å last siden på nytt', 'error');
+        return false;
+    }
+    
+    // Disable submit button to prevent double submission
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Oppretter...';
+    }
+    
+    fetch('/add_reminder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showToastNotification('✅ Påminnelse opprettet!', 'success');
+            
+            // Properly hide modal and remove backdrop
+            const modal = bootstrap.Modal.getInstance(document.getElementById('quickReminderModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Remove any lingering backdrop
+            setTimeout(() => {
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) {
+                    backdrop.remove();
+                }
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+            }, 300);
+            
+            // Properly refresh calendar events
+            if (window.calendar) {
+                window.calendar.refetchEvents();
+            }
+            // Update reminder count
+            updateReminderCount();
+        } else {
+            showToastNotification('❌ Kunne ikke opprette påminnelse: ' + (data.error || 'Ukjent feil'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating reminder:', error);
+        showToastNotification('❌ Feil ved opprettelse: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Re-enable submit button
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-plus"></i> Opprett påminnelse';
+        }
+    });
+    
+    return false; // Extra safety
+}
+
+// Deprecated - keeping old listener removal for safety
+document.getElementById('quickReminderForm')?.removeEventListener('submit', handleQuickReminderSubmit);
+
+// Notification function (if not already defined)
+function showToastNotification(message, type = 'info') {
+    // Check if function already exists in app.js
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message, type);
+        return;
+    }
+    
+    // Fallback notification
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.zIndex = '9999';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+
+// Hide "Kalenderen tar litt tid å laste" message
+setTimeout(function() {
+    const loadingEl = document.getElementById('calendar-loading');
+    if (loadingEl && loadingEl.style.display !== 'none') {
+        loadingEl.style.display = 'none';
+    }
+}, 500);
+
+// Enhanced push notification status check and mobile PWA features
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Dashboard PWA and notification features initializing...');
+    
+    // Check PWA installation status
+    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('📱 Running in standalone mode (PWA installed)');
+        // Hide install button since app is already installed
+        const installBtn = document.getElementById('installBtn');
+        if (installBtn) installBtn.style.display = 'none';
+    } else {
+        console.log('🌐 Running in browser mode');
+        // Show install button after a delay
+        setTimeout(() => {
+            const installBtn = document.getElementById('installBtn');
+            if (installBtn && window.deferredPrompt) {
+                installBtn.style.display = 'inline-block';
+            }
+        }, 3000);
+    }
+    
+    // Enhanced push notification status check
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+        navigator.serviceWorker.ready.then(function(registration) {
+            console.log('✅ Service Worker ready, checking push subscription...');
+            return registration.pushManager.getSubscription();
+        }).then(function(subscription) {
+            const enableBtn = document.getElementById('enablePushBtn');
+            
+            if (subscription) {
+                console.log('✅ Push subscription exists');
+                if (enableBtn) {
+                    enableBtn.style.display = 'none';
+                    enableBtn.innerHTML = '<i class="fas fa-check"></i> Varsler aktive';
+                }
+            } else {
+                console.log('ℹ️ No push subscription found');
+                if (enableBtn && Notification.permission !== 'granted') {
+                    enableBtn.style.display = 'inline-block';
+                    enableBtn.innerHTML = '<i class="fas fa-bell"></i> Aktiver varsler';
+                }
+            }
+        }).catch(function(error) {
+            console.error('❌ Error checking push subscription:', error);
+        });
+    }
+    
+    // Mobile-specific optimizations
+    if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        console.log('📱 Mobile device detected, applying mobile optimizations');
+        
+        // Add mobile-specific CSS
+        const mobileStyles = document.createElement('style');
+        mobileStyles.textContent = `
+            .pwa-install-banner {
+                position: fixed !important;
+                bottom: 20px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                z-index: 9998 !important;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+                border-radius: 25px !important;
+                animation: slideInUp 0.3s ease-out !important;
+            }
+            
+            @keyframes slideInUp {
+                from { transform: translateX(-50%) translateY(100px); opacity: 0; }
+                to { transform: translateX(-50%) translateY(0); opacity: 1; }
+            }
+            
+            .mobile-notification-optimized {
+                padding: 15px 25px !important;
+                font-size: 18px !important;
+                min-width: 280px !important;
+                max-width: 90vw !important;
+            }
+        `;
+        document.head.appendChild(mobileStyles);
+        
+        // Enhanced mobile notification handling
+        if ('Notification' in window && Notification.permission === 'default') {
+            setTimeout(() => {
+                if (confirm('🔔 Vil du motta varsler for påminnelser på denne enheten?')) {
+                    requestPushPermission();
+                }
+            }, 8000);
+        }
+    }
+});
+
+// Enhanced push permission request function
+function requestPushPermission() {
+    console.log('🔔 Requesting push notification permission');
+    
+    if (!('Notification' in window)) {
+        showToastNotification('Varslinger støttes ikke på denne enheten', 'error');
+        return;
+    }
+    
+    if (Notification.permission === 'denied') {
+        showToastNotification('Varslinger er blokkert. Aktiver dem i nettleserinnstillingene for å motta påminnelser.', 'warning', 10000);
+        return;
+    }
+    
+    // Request permission
+    Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+            console.log('✅ Notification permission granted');
+            showToastNotification('Varslinger aktivert! 🔔', 'success');
+            
+            // Hide the enable button
+            const enableBtn = document.getElementById('enablePushBtn');
+            if (enableBtn) {
+                enableBtn.style.display = 'none';
+            }
+            
+            // Initialize push notifications
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                // First get the VAPID public key
+                fetch('/api/vapid-public-key')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.public_key) {
+                            console.log('✅ Got VAPID public key');
+                            return navigator.serviceWorker.ready.then(registration => {
+                                return registration.pushManager.subscribe({
+                                    userVisibleOnly: true,
+                                    applicationServerKey: urlBase64ToUint8Array(data.public_key)
+                                });
+                            });
+                        } else {
+                            throw new Error('VAPID public key not available');
+                        }
+                    })
+                    .then(subscription => {
+                        console.log('✅ Push subscription successful');
+                        // Send subscription to server
+                        return fetch('/api/push-subscription', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ subscription: subscription })
+                        });
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            console.log('✅ Push subscription sent to server');
+                        } else {
+                            console.error('❌ Failed to send subscription to server');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Push subscription failed:', error);
+                    });
+            }
+        } else {
+            console.log('❌ Notification permission denied');
+            showToastNotification('Varslinger er nødvendig for å motta påminnelser', 'warning');
+        }
+    });
+}
+
+// Helper function to convert VAPID public key to Uint8Array
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// Enhanced toast notification function
+function showToastNotification(message, type = 'info', duration = 5000) {
+    // Remove existing toasts
+    const existingToasts = document.querySelectorAll('.toast-notification');
+    existingToasts.forEach(toast => toast.remove());
+    
+    // Create toast
+    const toast = document.createElement('div');
+    toast.className = `toast-notification alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'info'} alert-dismissible fade show`;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        max-width: 400px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        border-radius: 8px;
+        animation: slideInRight 0.3s ease-out;
+    `;
+    
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="flex-grow-1">${message}</div>
+            <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, duration);
+    
+    // Add animation styles
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// Add a function to preview sound selection
+function previewSound(soundFile) {
+    if (!soundFile) return;
+    // Mark that the user has interacted for mobile playback
+    window.userInteracted = true;
+    
+    const audio = new Audio(`/static/sounds/${soundFile}`);
+    audio.volume = 0.5;
+    
+    // Better error handling and fallback
+    audio.addEventListener('error', (e) => {
+        console.warn('Audio error:', e);
+        // Try fallback sound
+        const fallbackAudio = new Audio('/static/sounds/pristine.mp3');
+        fallbackAudio.volume = 0.3;
+        fallbackAudio.play().catch(() => {
+            console.info('Lyd ikke tilgjengelig (normal på noen enheter)');
+        });
+    });
+    
+    audio.play().then(() => {
+        showToastNotification('Lyd avspilt! 🎵', 'success');
+    }).catch(error => {
+        console.warn('Kunne ikke spille lyd:', error);
+        // Don't show error toast - many users don't want sound anyway
+        showToastNotification('Lyd ikke tilgjengelig (kan være normal)', 'info', 3000);
+    });
+}
+
+// Test push notification function
+async function testPushNotification() {
+    try {
+        showToastNotification('Sender test varsel...', 'info');
+        
+        const response = await fetch('/api/send-test-notification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToastNotification('✅ Test varsel sendt! Sjekk mobilen din.', 'success', 5000);
+        } else {
+            showToastNotification(`❌ Feil: ${result.error}`, 'error', 8000);
+        }
+    } catch (error) {
+        console.error('Error testing push notification:', error);
+        showToastNotification('❌ Kunne ikke sende test varsel', 'error');
+    }
+}
+
+// Show test button when push notifications are enabled
+document.addEventListener('DOMContentLoaded', function() {
+    const enablePushBtn = document.getElementById('enablePushBtn');
+    const testPushBtn = document.getElementById('testPushBtn');
+    
+    // Check if notifications are already enabled
+    if ('Notification' in window && Notification.permission === 'granted') {
+        if (enablePushBtn) enablePushBtn.style.display = 'none';
+        if (testPushBtn) testPushBtn.style.display = 'inline-block';
+    }
+    
+    // Watch for permission changes
+    if ('Notification' in window) {
+        const originalRequestPermission = Notification.requestPermission;
+        Notification.requestPermission = function() {
+            return originalRequestPermission.apply(this, arguments).then(permission => {
+                if (permission === 'granted') {
+                    if (enablePushBtn) enablePushBtn.style.display = 'none';
+                    if (testPushBtn) testPushBtn.style.display = 'inline-block';
+                }
+                return permission;
+            });
+        };
+    }
+});
+</script>
+{% endblock %}

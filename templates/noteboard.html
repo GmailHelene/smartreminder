@@ -1,0 +1,432 @@
+{% extends "base.html" %}
+
+{% block title %}{{ board.title }} - Delt tavle - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-chalkboard"></i> {{ board.title }}</h2>
+        <p class="text-muted">{{ board.description }}</p>
+        <small class="text-muted">Tilgangskode: <strong>{{ board.access_code }}</strong></small>
+    </div>
+    <div>
+        <button class="btn btn-outline-primary me-2" onclick="shareBoardLink('{{ board.access_code }}')">
+            <i class="fas fa-share"></i> Del tavle
+        </button>
+        <a href="{{ url_for('noteboards') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Tilbake
+        </a>
+    </div>
+</div>
+
+<!-- Board Canvas -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-chalkboard"></i> {{ board.title }}</h5>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addQuickNote()">
+                <i class="fas fa-plus"></i> Hurtig notat
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-info" onclick="toggleGridView()">
+                <i class="fas fa-th"></i> Rutenett
+            </button>
+        </div>
+    </div>
+    <div class="card-body position-relative board-canvas-container" style="min-height: 800px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow-x: auto; overflow-y: auto;">
+        <div id="board-canvas" class="position-relative" onclick="addNoteAtPosition(event)" 
+             style="min-width: 1200px; min-height: 800px; background-image: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px); background-size: 30px 30px;">
+            {% if board.notes %}
+                {% for note in board.notes %}
+                <div class="sticky-note draggable-note" id="note-{{ note.id }}" 
+                     data-note-id="{{ note.id }}"
+                     style="position: absolute; left: {{ note.position.x if note.position and note.position.x is not none else (50 + (loop.index0 % 4) * 250) }}px; top: {{ note.position.y if note.position and note.position.y is not none else (50 + (loop.index0 // 4) * 230) }}px;">
+                    <div class="note-content bg-{{ note.color|default('warning') }} shadow-lg border-0" 
+                         style="width: 200px; min-height: 200px; cursor: move; border-radius: 15px; transform: rotate({{ (loop.index0 % 5 - 2) * 2 }}deg); transition: all 0.3s ease; position: relative; z-index: {{ 100 + loop.index0 }};">
+                        
+                        <!-- Note Content -->
+                        <div class="note-header d-flex justify-content-between align-items-start p-2" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
+                            <div class="d-flex align-items-center">
+                                <div class="user-avatar" style="width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(45deg, #ff6b6b, #4ecdc4); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.7rem; margin-right: 6px;">
+                                    {{ note.author.split('@')[0][:2].upper() }}
+                                </div>
+                                <small class="text-dark fw-bold">{{ note.author.split('@')[0] }}</small>
+                            </div>
+                            <div class="note-actions">
+                                {% if note.author == current_user.email or board.created_by == current_user.email %}
+                                <button class="btn btn-sm btn-light note-action-btn" onclick="editNote('{{ note.id }}', event)" style="border: 1px solid rgba(0,0,0,0.1); padding: 4px 8px; margin-right: 4px; border-radius: 4px;">
+                                    <i class="fas fa-edit" style="font-size: 1.1em;"></i>
+                                </button>
+                                <button class="btn btn-sm btn-light text-danger note-action-btn" onclick="deleteNote('{{ note.id }}')" style="border: 1px solid rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px;">
+                                    <i class="fas fa-times" style="font-size: 1.1em;"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="note-body p-3">
+                            <div class="note-text" data-note-id="{{ note.id }}" style="font-size: 0.9em; line-height: 1.4; max-height: 120px; overflow-y: auto; word-break: break-word;">{{ note.content|nl2br }}</div>
+                            <div class="note-footer mt-2 pt-2" style="border-top: 1px solid rgba(0,0,0,0.1);">
+                                <small class="text-dark d-block opacity-75">{{ note.created_at | as_datetime | strftime('%d.%m %H:%M') }}</small>
+                                {% if note.updated_at != note.created_at %}
+                                <small class="text-dark opacity-50">✏️ {{ note.updated_at | as_datetime | strftime('%d.%m %H:%M') }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Note pin -->
+                        <div class="note-pin" style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); width: 15px; height: 15px; border-radius: 50%; background: #ff4757; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center text-white py-5" id="empty-board-message" style="background: rgba(0,0,0,0.1); border-radius: 15px; margin: 50px;">
+                    <i class="fas fa-sticky-note fa-4x mb-4 opacity-75"></i>
+                    <h4 class="fw-light">Ingen notater ennå</h4>
+                    <p class="mb-4">Start samarbeidet ved å klikke hvor som helst på tavlen!</p>
+                    <button class="btn btn-light btn-lg" onclick="addQuickNote()">
+                        <i class="fas fa-plus me-2"></i>Legg til første notat
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Note Form -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-plus"></i> Legg til nytt notat</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('add_note_to_board', board_id=board.board_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" name="content" placeholder="Skriv ditt notat her..." 
+                                  style="height: 100px;" required></textarea>
+                        <label>Notat innhold</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-floating mb-3">
+                        <select class="form-select" name="color">
+                            <option value="warning">Gul</option>
+                            <option value="info">Blå</option>
+                            <option value="success">Grønn</option>
+                            <option value="danger">Rød</option>
+                            <option value="light">Hvit</option>
+                        </select>
+                        <label>Farge</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100 h-100">
+                        <i class="fas fa-plus"></i><br>Legg til
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Board Members -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h6><i class="fas fa-users"></i> Medlemmer ({{ board.members|length }})</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for member in board.members %}
+            <div class="col-md-3 mb-2">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-user-circle fa-2x text-primary me-2"></i>
+                    <div>
+                        <small class="d-block">{{ member }}</small>
+                        {% if member == board.created_by %}
+                        <span class="badge bg-primary">Eier</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Make notes draggable
+document.addEventListener('DOMContentLoaded', function() {
+    const notes = document.querySelectorAll('.sticky-note');
+    
+    notes.forEach(note => {
+        let isDragging = false;
+        let startX, startY, noteX, noteY;
+        
+        const noteContent = note.querySelector('.note-content');
+        
+        noteContent.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            noteX = note.offsetLeft;
+            noteY = note.offsetTop;
+            noteContent.style.cursor = 'grabbing';
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            
+            const newX = noteX + (e.clientX - startX);
+            const newY = noteY + (e.clientY - startY);
+            
+            // Keep within bounds
+            const canvas = document.getElementById('board-canvas');
+            const maxX = canvas.offsetWidth - note.offsetWidth;
+            const maxY = canvas.offsetHeight - note.offsetHeight;
+            
+            const boundedX = Math.max(0, Math.min(newX, maxX));
+            const boundedY = Math.max(0, Math.min(newY, maxY));
+            
+            note.style.left = boundedX + 'px';
+            note.style.top = boundedY + 'px';
+        });
+        
+        document.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                noteContent.style.cursor = 'move';
+                
+                // Save position
+                const noteId = note.dataset.noteId;
+                const x = parseInt(note.style.left);
+                const y = parseInt(note.style.top);
+                
+                updateNotePosition(noteId, x, y);
+            }
+        });
+    });
+});
+
+function updateNotePosition(noteId, x, y) {
+    fetch(`/api/update-note-position/${noteId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+        },
+        body: JSON.stringify({ x: x, y: y })
+    })
+    .catch(error => {
+        console.error('Error updating note position:', error);
+    });
+}
+
+function deleteNote(noteId) {
+    if (confirm('Er du sikker på at du vil slette dette notatet?')) {
+        fetch(`/api/delete-note/${noteId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                document.getElementById(`note-${noteId}`).remove();
+                // Show empty message if no notes left
+                const remainingNotes = document.querySelectorAll('.sticky-note');
+                if (remainingNotes.length === 0) {
+                    showEmptyBoardMessage();
+                }
+            } else {
+                alert('Feil ved sletting av notat');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting note:', error);
+            alert('Feil ved sletting av notat');
+        });
+    }
+}
+
+function addNoteAtPosition(event) {
+    // Don't add note if clicking on existing note
+    if (event.target.closest('.sticky-note')) {
+        return;
+    }
+    
+    const canvas = document.getElementById('board-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    const content = prompt('Skriv inn innholdet for notatet:');
+    if (!content) return;
+    
+    // Hide empty message
+    const emptyMessage = document.getElementById('empty-board-message');
+    if (emptyMessage) {
+        emptyMessage.style.display = 'none';
+    }
+    
+    fetch(`{{ url_for('add_note_to_board', board_id=board.board_id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+        },
+        body: JSON.stringify({
+            content: content,
+            x: x,
+            y: y,
+            color: 'warning'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Send notification to other board members
+            if (typeof notifyBoardUpdate === 'function') {
+                notifyBoardUpdate('{{ board.board_id }}', 'Nytt notat lagt til', content);
+            }
+            location.reload(); // Refresh to show new note
+        } else {
+            alert('Feil ved oppretting av notat');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating note:', error);
+        alert('Feil ved oppretting av notat');
+    });
+}
+
+function editNote(noteId, event) {
+    event.stopPropagation();
+    
+    const noteElement = document.querySelector(`[data-note-id="${noteId}"] .note-text`);
+    const currentContent = noteElement.textContent.trim();
+    
+    const newContent = prompt('Rediger notat:', currentContent);
+    if (!newContent || newContent === currentContent) return;
+    
+    fetch(`/api/edit-note/${noteId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+        },
+        body: JSON.stringify({ content: newContent })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            noteElement.textContent = newContent;
+            // Send notification to other board members
+            if (typeof notifyBoardUpdate === 'function') {
+                notifyBoardUpdate('{{ board.board_id }}', 'Notat redigert', newContent);
+            }
+        } else {
+            alert('Feil ved redigering av notat');
+        }
+    })
+    .catch(error => {
+        console.error('Error editing note:', error);
+        alert('Feil ved redigering av notat');
+    });
+}
+
+function showEmptyBoardMessage() {
+    const canvas = document.getElementById('board-canvas');
+    const emptyMessage = document.createElement('div');
+    emptyMessage.id = 'empty-board-message';
+    emptyMessage.className = 'text-center text-muted py-5';
+    emptyMessage.innerHTML = `
+        <i class="fas fa-sticky-note fa-3x mb-3"></i>
+        <h4>Ingen notater ennå</h4>
+        <p>Klikk hvor som helst på tavlen for å legge til et notat.</p>
+    `;
+    canvas.appendChild(emptyMessage);
+}
+
+function shareBoardLink(accessCode) {
+    const shareMessage = `Bli med på min SmartReminder tavle! Bruk koden: ${accessCode}`;
+    
+    if (navigator.share) {
+        navigator.share({
+            title: 'Bli med på delt tavle',
+            text: shareMessage
+        });
+    } else {
+        // Fallback - copy to clipboard
+        navigator.clipboard.writeText(shareMessage).then(() => {
+            alert('Tilgangskode kopiert til utklippstavle!');
+        }).catch(() => {
+            prompt('Del denne tilgangskoden:', accessCode);
+        });
+    }
+}
+
+function addQuickNote() {
+    const content = prompt('Skriv inn innholdet for det nye notatet:');
+    if (!content) return;
+    
+    // Get random position
+    const x = Math.random() * 300 + 50;
+    const y = Math.random() * 200 + 50;
+    
+    // Hide empty message
+    const emptyMessage = document.getElementById('empty-board-message');
+    if (emptyMessage) {
+        emptyMessage.style.display = 'none';
+    }
+    
+    fetch(`{{ url_for('add_note_to_board', board_id=board.board_id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+        },
+        body: JSON.stringify({
+            content: content,
+            x: x,
+            y: y,
+            color: 'warning'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Feil ved oppretting av notat: ' + (data.error || 'Ukjent feil'));
+        }
+    })
+    .catch(error => {
+        console.error('Error creating note:', error);
+        alert('Feil ved oppretting av notat');
+    });
+}
+
+function toggleGridView() {
+    const canvas = document.getElementById('board-canvas');
+    if (canvas.style.backgroundImage.includes('radial-gradient')) {
+        canvas.style.backgroundImage = 'none';
+    } else {
+        canvas.style.backgroundImage = 'radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px)';
+        canvas.style.backgroundSize = '30px 30px';
+    }
+}
+
+// Auto-refresh board every 30 seconds to see other users' changes
+setInterval(() => {
+    if (!document.hidden) {
+        // Only refresh if no notes are being dragged
+        if (!document.querySelector('.sticky-note:hover')) {
+            location.reload();
+        }
+    }
+}, 30000);
+</script>
+{% endblock %}

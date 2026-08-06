@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Personvern - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h1 class="h3 mb-3">Personvern</h1>
+        <p class="text-muted">Sist oppdatert: 06.08.2026</p>
+
+        <p>Kort sagt: vi lagrer bare det som trengs for at påminnelsene dine skal virke, og du kan slette alt selv når som helst.</p>
+
+        <h2 class="h5 mt-4">Hva vi lagrer</h2>
+        <ul>
+          <li><strong>E-postadressen din</strong> - brukes som innlogging og for å sende varsler.</li>
+          <li><strong>Passordet ditt</strong> - lagres aldri i klartekst, kun som en sikker hash.</li>
+          <li><strong>Påminnelsene og tavlene dine</strong> - tittel, tidspunkt, notater og hvem du eventuelt deler med.</li>
+          <li><strong>Push-abonnement</strong> - hvis du skrur på varsler i nettleseren.</li>
+        </ul>
+
+        <h2 class="h5 mt-4">Hvorfor</h2>
+        <p>Kun for å drive tjenesten: vise påminnelsene dine, sende deg varsler og la deg dele med andre. Vi selger ikke data, og vi bruker den ikke til reklame.</p>
+
+        <h2 class="h5 mt-4">Hvem vi deler med</h2>
+        <p>E-postvarsler sendes via <strong>Brevo</strong> (e-postleverandør). Appen kjører på <strong>Railway</strong>. Utover det deler vi ingenting med tredjeparter.</p>
+
+        <h2 class="h5 mt-4">Informasjonskapsler (cookies)</h2>
+        <p>Vi bruker kun en nødvendig innloggings-cookie for å holde deg pålogget. Ingen sporing, ingen analyse-cookies.</p>
+
+        <h2 class="h5 mt-4">Rettighetene dine</h2>
+        <p>Du kan når som helst se, endre og slette dataene dine i appen. Vil du slette hele kontoen, bruker du <strong>«Slett konto»</strong> nederst på dashbordet - da fjernes kontoen og alt innholdet ditt umiddelbart.</p>
+
+        <h2 class="h5 mt-4">Kontakt</h2>
+        <p>Spørsmål om personvern? Send en e-post til <a href="mailto:helene721@gmail.com">helene721@gmail.com</a>.</p>
+
+        <a href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('login') }}" class="btn btn-outline-primary mt-3">Tilbake</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

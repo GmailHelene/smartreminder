@@ -1,0 +1,3 @@
+Deployment trigger file - updated to force Railway redeploy
+Timestamp: 2025-07-14 12:55 PM
+Fixes applied: VAPID keys, CSRF exemptions, missing functions
