@@ -85,6 +85,26 @@ def test_add_and_complete_reminder(account, page):
     assert "PW test reminder" in page.content()
 
 
+def test_injected_script_is_blocked_by_csp(account, page):
+    """XSS defense: a <script> without the nonce must NOT execute (script-src-elem)."""
+    page.goto(f"{BASE_URL}/dashboard")
+    executed = page.evaluate("""() => new Promise(resolve => {
+        window.__xss = false;
+        const s = document.createElement('script');
+        s.textContent = 'window.__xss = true;';
+        document.body.appendChild(s);
+        setTimeout(() => resolve(window.__xss === true), 300);
+    })""")
+    assert executed is False, "Injected inline <script> executed — CSP is NOT blocking it!"
+
+
+def test_inline_handler_still_works(account, page):
+    """Enkel visning toggle uses an onchange handler; it must still fire under the CSP."""
+    page.check("#simpleViewSwitch")
+    page.wait_for_load_state("networkidle")
+    assert "simple-view" in page.content(), "onchange handler did not fire (CSP too strict?)"
+
+
 def test_no_console_errors_on_dashboard(account, page):
     """Guard for the strict-CSP work: no uncaught JS / CSP errors on the dashboard."""
     errors = []

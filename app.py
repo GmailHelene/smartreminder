@@ -339,10 +339,16 @@ def set_security_headers(response):
     response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
     response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
     response.headers.setdefault('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()')
-    # CSP allows the CDNs (Bootstrap/Font Awesome) and the inline scripts/styles this app relies on.
+    # CSP: script-src-elem is nonce-strict, so every <script> (including any injected
+    # via XSS) must carry this request's nonce -> injected <script> tags are blocked
+    # (the primary XSS vector). Inline event handlers fall through to script-src-attr
+    # -> script-src ('unsafe-inline'), so existing onclick/onchange keep working without
+    # a risky mass rewrite. All our inline <script> blocks carry the nonce.
+    _nonce = getattr(g, 'csp_nonce', '')
     csp = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        f"script-src-elem 'self' 'nonce-{_nonce}' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
         "font-src 'self' https://cdnjs.cloudflare.com data:; "
         "img-src 'self' data: https:; "
@@ -355,25 +361,6 @@ def set_security_headers(response):
         "form-action 'self'"
     )
     response.headers.setdefault('Content-Security-Policy', csp)
-    # Strict policy in REPORT-ONLY: nonce-based scripts, no 'unsafe-inline'.
-    # This BLOCKS NOTHING — it only reports what a strict CSP would break, so inline
-    # handlers/scripts can be converted safely before we flip it to enforcing.
-    _nonce = getattr(g, 'csp_nonce', '')
-    strict_csp = (
-        "default-src 'self'; "
-        f"script-src 'self' 'nonce-{_nonce}' https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
-        "font-src 'self' https://cdnjs.cloudflare.com data:; "
-        "img-src 'self' data: https:; "
-        "connect-src 'self'; "
-        "manifest-src 'self'; "
-        "worker-src 'self'; "
-        "frame-ancestors 'self'; "
-        "base-uri 'self'; "
-        "object-src 'none'; "
-        "form-action 'self'"
-    )
-    response.headers.setdefault('Content-Security-Policy-Report-Only', strict_csp)
     # HSTS is only honored over HTTPS (browsers ignore it on plain HTTP).
     if request.is_secure:
         response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
