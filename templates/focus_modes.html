@@ -83,7 +83,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Auto-save focus mode on change
 document.querySelectorAll('input[name="focus_mode"]').forEach(radio => {
     radio.addEventListener('change', function() {

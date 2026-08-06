@@ -731,7 +731,7 @@
 {% block scripts %}
 {{ super() }}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // CSRF Token refresh - fix for token expiration issues
 document.addEventListener('DOMContentLoaded', function() {
     // Make sure all forms have a valid CSRF token
@@ -795,7 +795,7 @@ document.addEventListener('DOMContentLoaded', function() {
         crossorigin="anonymous" 
         onerror="console.error('Failed to load FullCalendar JS'); this.remove();"></script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Optimized calendar initialization - prevent hanging
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🎯 Starting optimized calendar initialization...');

@@ -144,7 +144,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Auto-refresh statistics every 30 seconds
 setTimeout(function() {
     window.location.reload();

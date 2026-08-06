@@ -143,7 +143,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // (Fjernet tvungen auto-focus - poppet opp mobiltastaturet ved innlasting.)
 
 // Åpne glemt-passord-modal

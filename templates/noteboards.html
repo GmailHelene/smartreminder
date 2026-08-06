@@ -121,7 +121,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function shareBoardLink(accessCode) {
     const shareMessage = `Bli med på min SmartReminder tavle! Bruk koden: ${accessCode}`;
     

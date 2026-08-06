@@ -90,7 +90,7 @@
         <i class="fas fa-wifi" aria-hidden="true"></i> Du er offline. Du ser en lagret versjon - nye endringer krever nettforbindelse.
         <button type="button" onclick="if (navigator.onLine) { location.reload(); }" class="btn btn-sm btn-light ms-2" style="padding:2px 10px;">Prøv på nytt</button>
     </div>
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function() {
         function updateOnline() {
             var b = document.getElementById('offline-banner');
