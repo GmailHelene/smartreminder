@@ -1016,6 +1016,7 @@ def health_check():
         'timestamp': datetime.now().isoformat(),
         'version': '1.0.0',
         'storage': 'postgres' if getattr(dm, 'use_db', False) else 'json_volume',
+        'encryption': bool(getattr(dm, '_fernet', None)),  # bare på/av, ingen nøkkel-info
     }
     if getattr(dm, 'use_db', False):
         try:
