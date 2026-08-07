@@ -105,6 +105,21 @@ def test_inline_handler_still_works(account, page):
     assert "simple-view" in page.content(), "onchange handler did not fire (CSP too strict?)"
 
 
+def test_dark_mode_toggle_and_persist(page):
+    """Tema-knappen skal sette data-bs-theme=dark og huske valget over reload."""
+    page.goto(f"{BASE_URL}/login")
+    # default (systemet i test er lyst) -> ikke dark
+    assert page.locator("html").get_attribute("data-bs-theme") != "dark"
+    page.click("#theme-toggle")
+    assert page.locator("html").get_attribute("data-bs-theme") == "dark"
+    # vedvarer etter reload (localStorage)
+    page.reload()
+    assert page.locator("html").get_attribute("data-bs-theme") == "dark", "tema ikke husket etter reload"
+    # tilbake til lyst
+    page.click("#theme-toggle")
+    assert page.locator("html").get_attribute("data-bs-theme") == "light"
+
+
 def test_passkey_register_then_login(page):
     """Full WebAuthn round-trip via a CDP virtual authenticator: add a passkey, log out, log back in with it."""
     email, password = _unique_email(), "PasskeyPass123"
