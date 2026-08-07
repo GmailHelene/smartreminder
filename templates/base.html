@@ -4,6 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="SmartReminder Pro hjelper deg å huske det som betyr noe. Enkle påminnelser på e-post og web-push, delte tavler, og en ekstra enkel visning.">
+    <!-- Tema (mørk/lys): settes FØR CSS lastes for å unnga hvit blink. Folger systemvalg om brukeren ikke har valgt selv. -->
+    <script nonce="{{ csp_nonce }}">
+    (function() {
+        try {
+            var saved = localStorage.getItem('theme');
+            var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var theme = saved || (sysDark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-bs-theme', theme);
+        } catch (e) { /* localStorage kan vaere blokkert - da bare lys */ }
+    })();
+    </script>
     <title>{% block title %}SmartReminder Pro{% endblock %}</title>
     <link rel="canonical" href="{{ app_url }}{{ request.path }}">
 
@@ -102,6 +113,27 @@
     })();
     </script>
 
+    <!-- Tema-bytter: flipper data-bs-theme + husker valget -->
+    <script nonce="{{ csp_nonce }}">
+    function toggleTheme() {
+        var cur = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light';
+        var next = cur === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-bs-theme', next);
+        try { localStorage.setItem('theme', next); } catch (e) {}
+        syncThemeIcon();
+    }
+    function syncThemeIcon() {
+        var icon = document.getElementById('theme-toggle-icon');
+        if (!icon) { return; }
+        var dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        // Vis sola i mork modus (trykk for lys), mane i lys modus (trykk for mork)
+        icon.className = dark ? 'fas fa-sun' : 'fas fa-moon';
+        var btn = document.getElementById('theme-toggle');
+        if (btn) { btn.setAttribute('title', dark ? 'Bytt til lyst tema' : 'Bytt til mork tema'); }
+    }
+    document.addEventListener('DOMContentLoaded', syncThemeIcon);
+    </script>
+
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid">
@@ -109,24 +141,31 @@
                 <i class="fas fa-bell me-2"></i>SmartReminder
             </a>
             
-            {% if current_user.is_authenticated %}
-            <div class="navbar-nav ms-auto">
-                <!-- PWA Install Button -->
-                <button class="btn btn-outline-light btn-sm me-2" id="pwa-install-btn" onclick="installPWA()" style="display: none;">
-                    <i class="fas fa-download"></i> <span class="d-none d-md-inline">Installer App</span>
+            <div class="d-flex align-items-center ms-auto">
+                <!-- Tema-bytter (alltid synlig, ogsa pa login) -->
+                <button class="btn btn-outline-light btn-sm me-2" id="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Bytt mellom lyst og morkt tema" title="Bytt tema">
+                    <i class="fas fa-moon" id="theme-toggle-icon" aria-hidden="true"></i>
                 </button>
-                
-                <a class="nav-link" href="{{ url_for('focus_modes') }}">
-                    <i class="fas fa-brain"></i> <span class="d-none d-md-inline">Fokus</span>
-                </a>
-                <a class="nav-link" href="{{ url_for('noteboards') }}">
-                    <i class="fas fa-sticky-note"></i> <span class="d-none d-md-inline">Tavler</span>
-                </a>
-                <a class="nav-link" href="{{ url_for('logout') }}">
-                    <i class="fas fa-sign-out-alt"></i> <span class="d-none d-md-inline">Logg ut</span>
-                </a>
+
+                {% if current_user.is_authenticated %}
+                <div class="navbar-nav">
+                    <!-- PWA Install Button -->
+                    <button class="btn btn-outline-light btn-sm me-2" id="pwa-install-btn" onclick="installPWA()" style="display: none;">
+                        <i class="fas fa-download"></i> <span class="d-none d-md-inline">Installer App</span>
+                    </button>
+
+                    <a class="nav-link" href="{{ url_for('focus_modes') }}">
+                        <i class="fas fa-brain"></i> <span class="d-none d-md-inline">Fokus</span>
+                    </a>
+                    <a class="nav-link" href="{{ url_for('noteboards') }}">
+                        <i class="fas fa-sticky-note"></i> <span class="d-none d-md-inline">Tavler</span>
+                    </a>
+                    <a class="nav-link" href="{{ url_for('logout') }}">
+                        <i class="fas fa-sign-out-alt"></i> <span class="d-none d-md-inline">Logg ut</span>
+                    </a>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
     </nav>
     

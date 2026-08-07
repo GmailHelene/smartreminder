@@ -454,10 +454,75 @@ class DataManager:
     _DICT_COLLECTIONS = {'users', 'password_reset_requests', 'push_subscriptions', 'shared_noteboards',
                          'webauthn_credentials'}
 
+    # Felt-nivå kryptering (i hvile): hvilke felt som krypteres per samling.
+    # Kun brukergenerert innhold - IKKE e-post (brukes som oppslagsnokkel) eller passord (allerede hashet).
+    _ENC_PREFIX = 'enc:v1:'
+    _ENCRYPTED_FIELDS = {
+        'reminders': ('title', 'description'),
+        'shared_reminders': ('title', 'description'),
+    }
+
     def _default_for(self, name):
         return {} if name in self._DICT_COLLECTIONS else []
 
+    # ---- Felt-nivå kryptering (dormant til ENCRYPTION_KEY er satt) ----
+    def _init_crypto(self):
+        self._fernet = None
+        key = os.environ.get('ENCRYPTION_KEY', '').strip()
+        if not key:
+            return
+        try:
+            from cryptography.fernet import Fernet
+            self._fernet = Fernet(key.encode('utf-8'))
+            logger.info("Felt-nivå kryptering: PÅ (reminders/shared_reminders: title+description)")
+        except Exception as e:
+            logger.error(f"ENCRYPTION_KEY ugyldig - kryptering AV (data lagres i klartekst): {e}")
+            self._fernet = None
+
+    def _encrypt_str(self, s):
+        if not isinstance(s, str) or s == '' or s.startswith(self._ENC_PREFIX):
+            return s
+        return self._ENC_PREFIX + self._fernet.encrypt(s.encode('utf-8')).decode('ascii')
+
+    def _decrypt_str(self, s):
+        if not isinstance(s, str) or not s.startswith(self._ENC_PREFIX):
+            return s
+        if not self._fernet:
+            return s  # kan ikke dekryptere uten nokkel - returner rått (og logg via _apply_decrypt)
+        try:
+            return self._fernet.decrypt(s[len(self._ENC_PREFIX):].encode('ascii')).decode('utf-8')
+        except Exception as e:
+            logger.error(f"Dekryptering feilet (feil/mangler ENCRYPTION_KEY?): {e}")
+            return s
+
+    def _apply_encrypt(self, name, data):
+        """Returnerer en KOPI med krypterte felt (muterer ikke innringers data)."""
+        fields = self._ENCRYPTED_FIELDS.get(name)
+        if not self._fernet or not fields or not isinstance(data, list):
+            return data
+        import copy as _copy
+        out = _copy.deepcopy(data)
+        for item in out:
+            if isinstance(item, dict):
+                for f in fields:
+                    if f in item:
+                        item[f] = self._encrypt_str(item[f])
+        return out
+
+    def _apply_decrypt(self, name, data):
+        """Dekrypterer felt som er merket med prefiks (drevet av prefiks, ikke config)."""
+        fields = self._ENCRYPTED_FIELDS.get(name)
+        if not fields or not isinstance(data, list):
+            return data
+        for item in data:
+            if isinstance(item, dict):
+                for f in fields:
+                    if f in item:
+                        item[f] = self._decrypt_str(item[f])
+        return data
+
     def __init__(self):
+        self._init_crypto()
         db_url = os.environ.get('DATABASE_URL', '').strip()
         want_db = os.environ.get('USE_DB', '').lower() in ('true', '1', 'yes')
         self.use_db = bool(db_url) and want_db
@@ -575,6 +640,7 @@ class DataManager:
                 data = self._db_get(filename)
                 if data is None:
                     return default if default is not None else self._default_for(filename)
+                data = self._apply_decrypt(filename, data)
                 if filename == 'users' and isinstance(data, list):
                     users_dict = {}
                     for user in data:
@@ -591,6 +657,7 @@ class DataManager:
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                data = self._apply_decrypt(filename, data)
                 if filename == 'users' and isinstance(data, list):
                     users_dict = {}
                     for user in data:
@@ -607,6 +674,8 @@ class DataManager:
 
     def save_data(self, filename, data):
         """Lagre en samling (DB: upsert i app_store; JSON: fil m/backup)."""
+        # Krypter sensitive felt i hvile (no-op hvis ENCRYPTION_KEY ikke er satt). Muterer ikke innringers data.
+        data = self._apply_encrypt(filename, data)
         if self.use_db:
             try:
                 self._db_put(filename, data)
@@ -1475,6 +1544,64 @@ def admin_db_test():
     except Exception as e:
         info['result'] = f'FEIL: {type(e).__name__}: {str(e)[:400]}'
     return jsonify(info)
+
+
+@app.route('/admin/encrypt-status')
+@login_required
+def admin_encrypt_status():
+    """Viser om felt-nivå kryptering er på, og hvor mange rader som (ikke) er kryptert."""
+    if current_user.email != 'helene721@gmail.com':
+        abort(403)
+
+    def _counts(name):
+        # Les rå (ukryptert-visning unngås): tell hvor mange title-felt som har prefiks.
+        enc = plain = 0
+        # Les rådata fra backend UTEN dekryptering, så vi ser hva som faktisk ligger lagret.
+        try:
+            if dm.use_db:
+                data = dm._db_get(name) or []
+            else:
+                import json as _j
+                fp = dm.data_dir / f"{name}.json"
+                data = _j.loads(fp.read_text(encoding='utf-8')) if fp.exists() else []
+        except Exception:
+            data = []
+        for it in (data or []):
+            if isinstance(it, dict) and isinstance(it.get('title'), str):
+                if it['title'].startswith(DataManager._ENC_PREFIX):
+                    enc += 1
+                else:
+                    plain += 1
+        return {'kryptert': enc, 'klartekst': plain}
+
+    return jsonify({
+        'kryptering_aktiv': bool(dm._fernet),
+        'ENCRYPTION_KEY_satt': bool(os.environ.get('ENCRYPTION_KEY', '').strip()),
+        'felt': DataManager._ENCRYPTED_FIELDS,
+        'reminders': _counts('reminders'),
+        'shared_reminders': _counts('shared_reminders'),
+        'hint': ('Kjør POST /admin/encrypt-existing for å kryptere gamle rader.'
+                 if bool(dm._fernet) else
+                 'Sett ENCRYPTION_KEY i Railway for å slå på kryptering.'),
+    })
+
+
+@app.route('/admin/encrypt-existing', methods=['POST'])
+@login_required
+def admin_encrypt_existing():
+    """Krypterer eksisterende (klartekst) rader ved å laste + lagre på nytt. Idempotent."""
+    if current_user.email != 'helene721@gmail.com':
+        abort(403)
+    if not dm._fernet:
+        return jsonify({'ok': False, 'error': 'ENCRYPTION_KEY er ikke satt - kryptering er av.'}), 400
+    done = {}
+    for name in ('reminders', 'shared_reminders'):
+        try:
+            dm.save_data(name, dm.load_data(name))  # load dekrypterer, save krypterer
+            done[name] = 'ok'
+        except Exception as e:
+            done[name] = f'FEIL: {e}'
+    return jsonify({'ok': True, 'resultat': done})
 
 
 @app.route('/complete_reminder/<reminder_id>', methods=['POST'])
